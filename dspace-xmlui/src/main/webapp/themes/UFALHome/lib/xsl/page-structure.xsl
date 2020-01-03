@@ -808,7 +808,7 @@
 		</script>
 
 		<!-- Add a google analytics script if the key is present -->
-		<xsl:if
+        <!--<xsl:if
 			test="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='google'][@qualifier='analytics']">
 			<script type="text/javascript">
 				<xsl:text>
@@ -826,7 +826,7 @@
                    })();
            </xsl:text>
 			</script>
-		</xsl:if>
+        </xsl:if>-->
 		
 		<script>				
 			jQuery.each(jQuery("#facet-box .truncate"), function(index, item) {
