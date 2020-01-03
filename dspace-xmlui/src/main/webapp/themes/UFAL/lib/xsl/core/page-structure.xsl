@@ -284,7 +284,7 @@
                 <meta name="{@element}" content="{.}"></meta>
             </xsl:for-each>
 
-            <link href="{concat($aaiURL, '/discojuice/discojuice.css')}" type="text/css" rel="stylesheet" />
+            <!--<link href="{concat($aaiURL, '/discojuice/discojuice.css')}" type="text/css" rel="stylesheet" />-->
 
         </head>
     </xsl:template>
@@ -462,8 +462,8 @@
                 </xsl:choose>
             </xsl:attribute>&#160;</script>
 
-        <script type="text/javascript" src="{concat($aaiURL, '/discojuice/discojuice-2.1.en.min.js')}">&#160;</script>
-        <script type="text/javascript" src="{concat($aaiURL, '/aai.js')}">&#160;</script>
+        <!--<script type="text/javascript" src="{concat($aaiURL, '/discojuice/discojuice-2.1.en.min.js')}">&#160;</script>-->
+        <!--<script type="text/javascript" src="{concat($aaiURL, '/aai.js')}">&#160;</script>-->
 
         <xsl:variable name="localJQuerySrc">
                 <xsl:value-of select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='contextPath'][not(@qualifier)]"/>
