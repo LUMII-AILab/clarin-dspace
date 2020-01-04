@@ -1,5 +1,5 @@
 <!--
-	/* Created for LINDAT/CLARIN */
+	/* Created for CLARIN-LV */
     Main structure of the UFAL-POINT home page
     header
     banner
@@ -11,7 +11,7 @@
     
     Author: Amir Kamran
 -->
-<xsl:stylesheet version="1.0" 
+<xsl:stylesheet version="1.0"
 	xmlns:i18n="http://apache.org/cocoon/i18n/2.1"
 	xmlns:dri="http://di.tamu.edu/DRI/1.0/"
 	xmlns:mets="http://www.loc.gov/METS/"
@@ -41,22 +41,22 @@
 			<xsl:call-template name="buildHead" />
 
 			<!-- Then proceed to the body -->
-			
+
 			<!--paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/-->
             <xsl:text disable-output-escaping="yes">&lt;!--[if lt IE 7 ]&gt; &lt;body class="ie6"&gt; &lt;![endif]--&gt;
                 &lt;!--[if IE 7 ]&gt;    &lt;body id="lindat-repository" class="ie7"&gt; &lt;![endif]--&gt;
                 &lt;!--[if IE 8 ]&gt;    &lt;body id="lindat-repository" class="ie8"&gt; &lt;![endif]--&gt;
                 &lt;!--[if IE 9 ]&gt;    &lt;body id="lindat-repository" class="ie9"&gt; &lt;![endif]--&gt;
                 &lt;!--[if (gt IE 9)|!(IE)]&gt;&lt;!--&gt;&lt;body id="lindat-repository"&gt;&lt;!--&lt;![endif]--&gt;</xsl:text>
-			
-			
+
+
 			<!-- Common Header -->
 			<xsl:call-template name="buildHeader" />
 
 			<xsl:apply-templates select="dri:body" />
 
 			<!-- Common Footer -->
-			<xsl:call-template name="buildFooter" />			
+			<xsl:call-template name="buildFooter" />
 
 			<!-- Javascript at the bottom for fast page loading -->
 			<xsl:call-template name="addJavascript" />
@@ -71,14 +71,14 @@
 				<xsl:text>&#160;</xsl:text>
 			</a>
 
-            <xsl:text disable-output-escaping="yes">&lt;/body&gt;</xsl:text>				
-					
+            <xsl:text disable-output-escaping="yes">&lt;/body&gt;</xsl:text>
+
 		</html>
 	</xsl:template>
 
-	<!-- The HTML head element contains references to CSS as well as embedded 
-	JavaScript code. Most of this information is either user-provided bits of 
-	post-processing (as in the case of the JavaScript), or references to stylesheets 
+	<!-- The HTML head element contains references to CSS as well as embedded
+	JavaScript code. Most of this information is either user-provided bits of
+	post-processing (as in the case of the JavaScript), or references to stylesheets
 	pulled directly from the pageMeta element. -->
 	<xsl:template name="buildHead">
 		<head>
@@ -88,7 +88,7 @@
 			<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            
+
 			<link rel="shortcut icon">
 				<xsl:attribute name="href">
                     <xsl:value-of select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='contextPath'][not(@qualifier)]" />
@@ -97,7 +97,7 @@
                     <xsl:text>/images/favicon.ico</xsl:text>
                 </xsl:attribute>
 			</link>
-			
+
 			<!-- link rel="apple-touch-icon">
 				<xsl:attribute name="href">
                     <xsl:value-of select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='contextPath'][not(@qualifier)]" />
@@ -116,9 +116,9 @@
                 </xsl:if>
               </xsl:attribute>
 			</meta>
-			
+
 			<!-- Add stylsheets -->
-						
+
 			<xsl:for-each select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='stylesheet']">
 				<link rel="stylesheet" type="text/css">
 					<xsl:attribute name="media">
@@ -136,13 +136,13 @@
 
 			<!-- Add Lindat stylesheet -->
 			<link rel="stylesheet" href="{$theme-path}/lib/lindat/public/css/lindat.css" />
-			
+
 			<!-- Bootstrap stylesheets -->
 			<link rel="stylesheet" href="{$theme-path}/lib/bootstrap/css/bootstrap.min.css" />
-            <link rel="stylesheet" href="{$theme-path}/lib/bootstrap/css/font-awesome.min.css" />            
+            <link rel="stylesheet" href="{$theme-path}/lib/bootstrap/css/font-awesome.min.css" />
             <link rel="stylesheet" href="{$theme-path}/lib/bootstrap/css/ufal-theme.css" />
             <link rel="stylesheet" href="{$theme-path}/lib/bootstrap/css/repository.css" />
-					
+
 			<!-- Add syndication feeds -->
 			<xsl:for-each select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='feed']">
 				<link rel="alternate" type="application">
@@ -178,14 +178,14 @@
 			<!-- The following javascript removes the default text of empty text areas when they are focused on or submitted -->
 			<!-- There is also javascript to disable submitting a form when the 'enter' key is pressed. -->
 			<script type="text/javascript">
-				
+
 				// Clear default text of emty text areas on focus
 				function tFocus(element) {
 					if (element.value == '<i18n:text>xmlui.dri2xhtml.default.textarea.value</i18n:text>'){
 						element.value='';
 					}
 				}
-				
+
 				// Clear default text of emty text areas on submit
 				function tSubmit(form) {
 					var defaultedElements = document.getElementsByTagName("textarea");
@@ -195,7 +195,7 @@
 						}
 					}
 				}
-				
+
 				// Disable pressing 'enter' key to submit a form (otherwise pressing 'enter' causes a submission to start over)
 				function disableEnterKey(e) {
 					var key;
@@ -203,30 +203,30 @@
 						key = window.event.keyCode; //Internet Explorer
 					else
 						key = e.which; //Firefox and Netscape
-		
+
 					if(key == 13) //if "Enter" pressed, then disable!
 						return false;
 					else
 						return true;
 				}
-		
+
 				function FnArray() {
 					this.funcs = new Array;
 				}
-		
+
 				FnArray.prototype.add = function(f) {
 					if( typeof f!= "function" ) {
 						f = new Function(f);
 					}
 					this.funcs[this.funcs.length] = f;
 				};
-		
+
 				FnArray.prototype.execute = function() {
 					for( var i=0; i<xsl:text disable-output-escaping="yes">&lt;</xsl:text>this.funcs.length; i++ ){
 						this.funcs[i]();
 					}
 				};
-		
+
 				var runAfterJSImports = new FnArray();
 			</script>
 
@@ -265,10 +265,10 @@
 	<xsl:template match="dri:body">
 
         <xsl:call-template name="navbar" />
-        
+
 		<div class="container-fluid">
 			<div class="container">
-			
+
 				<xsl:if test="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='alert'][@qualifier='message']">
 				<div class="clearfix">
 					<div id="ds-system-wide-alert" class="alert alert-danger">
@@ -278,19 +278,19 @@
 					</div>
 				</div>
 				</xsl:if>
-			
-				
+
+
 				<!-- Top banner with lindat logo -->
 				<xsl:call-template name="top-banner" />
-				
+
 				<!-- A line with lindat branding colors -->
 				<div class="row hidden-xs" style="background: url('{$theme-path}/images/lindat_color_line.png'); height: 3px;">&#160;</div>
 
 		       	<div class="visible-xs text-center" style="margin-top: 5px; ">
 					<button id="showhidemenu" type="button" class="btn btn-default btn-sm" style="border-radius: 30px; width: 100%;">
 							<i class="fa fa-align-justify">&#160;</i> <i18n:text i18n:key="homepage.show_hide_menu">Show/Hide Menu</i18n:text>
-					</button>        	        		
-		       	</div>        
+					</button>
+		       	</div>
 
 
 				<!-- Big SearchBox -->
@@ -345,7 +345,7 @@
 						<ul class="sublist">
 							<xsl:for-each select="dri:item">
 								<li>
-									<a>										
+									<a>
 										<xsl:attribute name="href">
 											<xsl:value-of select="dri:xref/@target" />
 										</xsl:attribute>
@@ -414,7 +414,7 @@
 			<div class="label label-info" style="margin-bottom: 20px;">
                 <xsl:variable name="file-size" select="./mets:dmdSec/mets:mdWrap[@OTHERMDTYPE='DIM']/mets:xmlData/dim:dim/dim:field[@mdschema='local' and @element='files' and @qualifier='size']/node()" />
                 <xsl:variable name="formatted-file-size">
-                    <xsl:call-template name="format-size">                   
+                    <xsl:call-template name="format-size">
                         <xsl:with-param name="size" select="$file-size" />
                     </xsl:call-template>
                 </xsl:variable>
@@ -471,7 +471,7 @@
 			<xsl:value-of select="dim:field[@element='type'][1]/node()" />
 			<xsl:text>&#160;</xsl:text>
 		</div>
-		
+
         <xsl:if test="dim:field[@mdschema='local' and @element='branding']">
         	<div class="item-branding label">
 				<a>
@@ -483,7 +483,7 @@
 				</a>
         	</div>
         </xsl:if>
-		
+
 		<img class="artifact-icon pull-right" alt="{dim:field[@element='type'][1]/node()}" onerror="this.src='{$theme-path}/images/mime/application-x-zerosize.png'">
 			<xsl:attribute name="src">
                                 <xsl:text>themes/UFALHome/lib/images/</xsl:text>
@@ -523,7 +523,7 @@
                                 <a>
 									<xsl:attribute name="href"><xsl:copy-of select="$context-path"/>/browse?value=<xsl:copy-of select="node()" />&amp;type=author</xsl:attribute>
 									<xsl:copy-of select="node()" />
-								</a>                                
+								</a>
 							</span>
 							<xsl:if
 								test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) != 0">
@@ -536,7 +536,7 @@
                             <a>
                                 <xsl:attribute name="href"><xsl:copy-of select="$context-path"/>/browse?value=<xsl:copy-of select="node()" />&amp;type=author</xsl:attribute>
                                 <xsl:copy-of select="node()" />
-                            </a>                                
+                            </a>
 							<xsl:if
 								test="count(following-sibling::dim:field[@element='creator']) != 0">
 								<xsl:text>; </xsl:text>
@@ -600,12 +600,12 @@
 								<xsl:apply-templates select="document($externalMetadataURL)"
 									mode="recentList" />
 							</xsl:if>
-						</xsl:for-each>						
+						</xsl:for-each>
 					</xsl:if>
 					</xsl:for-each>&#160;
 					</div>
-					</div>		
-					</div>			
+					</div>
+					</div>
 				</xsl:for-each>
 			</div>
 		</xsl:for-each>
@@ -613,7 +613,7 @@
 	</xsl:template>
 
 	<xsl:template name="search-box">
-		<div class="row jumbotron" style="margin-bottom: 0px;">		
+		<div class="row jumbotron" style="margin-bottom: 0px;">
 			<form class="form-search" method="post">
 				<xsl:attribute name="action">
                             <xsl:value-of select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='contextPath']" />
@@ -651,13 +651,13 @@
 			</form>
                         <xsl:if test="/dri:document/dri:options/dri:list[@n='discovery']/dri:list">
                                 <xsl:call-template name="facet-box" />
-                        </xsl:if>			
+                        </xsl:if>
 		</div>
 	</xsl:template>
 
 
-	<!-- Currently the dri:meta element is not parsed directly. Instead, parts 
-		of it are referenced from inside other elements (like reference). The blank 
+	<!-- Currently the dri:meta element is not parsed directly. Instead, parts
+		of it are referenced from inside other elements (like reference). The blank
 		template below ends the execution of the meta branch -->
 	<xsl:template match="dri:meta" />
 
@@ -721,7 +721,7 @@
 	             <xsl:value-of select="$theme-path" />
 	             <xsl:text>/lib/bootstrap/js/bootstrap.min.js</xsl:text>
 			</xsl:attribute>&#160;</script>
-		
+
 		<script type="text/javascript">
 			<xsl:attribute name="src">
 	             <xsl:value-of select="$theme-path" />
@@ -753,9 +753,9 @@
 		<!-- add "shared" javascript from static, path is relative to webapp root -->
 		<xsl:for-each
 			select="/dri:document/dri:meta/dri:pageMeta/dri:metadata[@element='javascript'][@qualifier='static']">
-			<!--This is a dirty way of keeping the scriptaculous stuff from choice-support 
-				out of our theme without modifying the administrative and submission sitemaps. 
-				This is obviously not ideal, but adding those scripts in those sitemaps is 
+			<!--This is a dirty way of keeping the scriptaculous stuff from choice-support
+				out of our theme without modifying the administrative and submission sitemaps.
+				This is obviously not ideal, but adding those scripts in those sitemaps is
 				far from ideal as well -->
 			<xsl:choose>
 				<xsl:when test="text() = 'static/js/choice-support.js'">
@@ -827,8 +827,8 @@
            </xsl:text>
 			</script>
         </xsl:if>-->
-		
-		<script>				
+
+		<script>
 			jQuery.each(jQuery("#facet-box .truncate"), function(index, item) {
 				splitIndex = item.textContent.lastIndexOf("(");
 				if(splitIndex != -1) {
@@ -839,10 +839,10 @@
 					item.textContent = text + count;
 				}
 			});
-		</script>		
-		
+		</script>
+
 	</xsl:template>
-	
+
 	<xsl:template name="top-banner">
 	<div class="row hidden-xs">
 		<div style="height: 160px;" class="carousel col-xs-12 col-sm-12 col-md-7 col-lg-8" id="layerslider">
@@ -888,16 +888,19 @@
 		<div class="col-md-5 col-lg-4 hidden-xs hidden-sm">
 			<div class="row">
 				<div style="height: 160px; position: relative;" class="col-md-7 col-lg-7">
-				  <a href="/lindat">
-			            <img src="{$context-path}/themes/UFAL/images/lindat/lindat-logo.png" style="position: absolute; height: 60%; top: 0px; bottom: 0px; margin: auto;" class="logo" alt="LINDAT/CLARIN logo" /></a>
+<!--					<a href="/lindat">-->
+<!--						<img src="{$context-path}/themes/UFAL/images/lindat/lindat-logo.png" style="position: absolute; height: 60%; top: 0px; bottom: 0px; margin: auto;" class="logo" alt="LINDAT/CLARIN logo" />-->
+<!--					</a>-->
+					<p></p>
 				</div>
-		                <div style="height: 160px; position: relative;" class="col-md-5 col-lg-5">
-				    <a href="http://www.clarin.eu/">
-		                    <img src="{$context-path}/themes/UFAL/images/lindat/clarin-logo.png" style="position: absolute; height: 70%; top: 0px; bottom: 0px; margin: auto;" class="logo" alt="LINDAT/CLARIN logo" /></a>
-		                </div>
+				<div style="height: 160px; position: relative;" class="col-md-5 col-lg-5">
+					<a href="http://www.clarin.eu/" target="_blank">
+						<img src="{$context-path}/themes/UFAL/images/lindat/clarin-logo.png" style="position: absolute; height: 70%; top: 0px; bottom: 0px; margin: auto;" class="logo" alt="CLARIN logo" />
+					</a>
+				</div>
 			</div>
-        </div>		
-	</div>	
+        </div>
+	</div>
 	</xsl:template>
 </xsl:stylesheet>
 
