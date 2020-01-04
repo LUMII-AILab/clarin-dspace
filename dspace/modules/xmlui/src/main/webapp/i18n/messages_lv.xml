@@ -1071,7 +1071,7 @@
 	<message key="xmlui.administrative.registries.FormatRegistryMain.support_1">Zināms</message>
 	<message key="xmlui.ChoiceLookupTransformer.field.dc_contributor_author.title">LC nosaukuma iestādes autora uzmeklēšana</message>
 	<message key="org.dspace.eperson.LDAPAuthentication.title">LDAP autentifikācija</message>
-	<message key="xmlui.general.dspace_home">LINDAT/CLARIN repozitorija sākumlapa</message>
+	<message key="xmlui.general.dspace_home">CLARIN-LV repozitorija sākumlapa</message>
 	<message key="xmlui.dri2xhtml.mimetype.application/x-latex">Latekss</message>
 	<message key="input_forms.field.dc.language.iso.label">Valoda</message>
 	<message key="input_forms.field.dc.language.iso1.label">Valoda</message>
@@ -1910,7 +1910,7 @@
 	<message key="xmlui.feed.logo_title">Kanāla attēls</message>
 	<message key="xmlui.administrative.collection.AssignCollectionRoles.help_submitters">E-People un grupas, kurām ir atļauja iesniegt jaunus vienumus šajā kolekcijā.</message>
 	<message key="xmlui.administrative.authorization.AuthorizationMain.bad_name">Norādītais ID nav atrisināts vienumam</message>
-	<message key="xmlui.feed.general_description">LINDAT/CLARIN digitālā repozitorija sistēma tver, glabā, indeksē, saglabā un izplata digitālos pētniecības materiālus.</message>
+	<message key="xmlui.feed.general_description">CLARIN-LV digitālā repozitorija sistēma tver, glabā, indeksē, saglabā un izplata digitālos pētniecības materiālus.</message>
 	<message key="xmlui.administrative.registries.EditBitstreamFormat.mimetype_help">Šim formātam piesaistītajam MIME tipam nav jābūt unikālam.</message>
 	<message key="xmlui.EPerson.InvalidToken.para1">Norādītais URL nav derīgs. Iespējams, ka vietrādis URL ir lauzts vairākās jūsu e-pasta klienta rindiņās, piemēram:</message>
 	<message key="xmlui.administrative.item.EditBitstreamForm.user_help">Lietojumprogramma, ko izmantojāt, lai izveidotu failu, un versijas numurs (piemēram, "<i>ACMESoft SuperApp version 1.5</i>").</message>
@@ -2257,8 +2257,8 @@
 	<message key="xmlui.EPerson.WelcomeLogin.title">Sveiciena ziņojums</message>
 	<message key="xmlui.EPerson.WelcomeLogin.trail">Sveiciena ziņojums</message>
 	<message key="xmlui.administrative.eperson.AddEPersonForm.welcome_message">Sveiciena ziņojums</message>
-	<message key="UFAL.firstpage.title.text">Laipni lūdzam LINDAT/CLARIN - Valodu izpētes infrastruktūras centrs Čehijā</message>
-	<message key="xmlui.EPerson.WelcomeLogin.head1">Esiet sveicināts LINDAT/CLARIN repozitorijā!</message>
+	<message key="UFAL.firstpage.title.text">Laipni lūdzam CLARIN-LV - Valodu izpētes infrastruktūras centrs Čehijā</message>
+	<message key="xmlui.EPerson.WelcomeLogin.head1">Esiet sveicināts CLARIN-LV repozitorijā!</message>
 	<message key="xmlui.administrative.item.EditItemStatusForm.para1">Esiet sveicināts krājuma pārvaldības lapā! No šejienes šo vienumu var atsaukt, atjaunot, pārvietot vai dzēst. Varat arī atjaunināt vai pievienot jaunus metadatus/bitstreams citās cilnēs.</message>
 	<message key="xmlui.UFAL.navigation.menu_head">Ko tu vari darīt?</message>
 	<message key="xmlui.Submission.submit.AccessStep.error_missing_date">Kad Embargo ir atlasīts, jānorāda datums</message>
