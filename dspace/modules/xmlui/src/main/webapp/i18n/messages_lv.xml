@@ -2480,4 +2480,6 @@
 	<message key="xmlui.administrative.ControlPanel.minutes">{0} m</message>
 	<message key="xmlui.administrative.ControlPanel.seconds">{0} s</message>
 	<message key="xmlui.administrative.eperson.EditEPersonForm.head2">lietotāja {0} informācija:</message>
+	<message key="xmlui.ContractPage.explain_non_localized_license">Izplatīšanas licences līgums ir radīts angļu
+		valodā un tā pilnais saturs ir apskatāms zemāk. Latviešu valodas tulkojumam ir tikai informatīvs raksturs.</message>
 </catalogue>
