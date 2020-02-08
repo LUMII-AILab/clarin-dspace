@@ -1,0 +1,169 @@
+<div itemprop="articleBody">
+    <div class="page-header">
+        <h1>
+            How to sign up ?
+        </h1>
+        <p class="alert bold">
+            We are very glad that you are using our services and that you want to further the experience by obtaining an
+            account. There are basically two paths possible, the preferred and more convenient for both you and us is
+            logging with an institutional account. Below there's an overview of the institutional logins and local
+            logins; both with directions how to obtain the account.
+        </p>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 style="margin: 0px;">
+                1. Institutional Login
+            </h3>
+        </div>
+        <div class="panel-body">
+            <div class="col-md-6">
+                <p style="font-size: 120%;">
+                    With institutional logins you are de facto logging to a familiar page of your home institution and
+                    you are using credentials you already remember. The full procedure is bit more complicated - you
+                    initiate the login at our service, you are redirected to your institution and only after
+                    successfully logging there you are redirected back. Your insitution acts like a sort of a proxy for
+                    the multitude of services available in all the CLARIN Centres.
+                </p>
+            </div>
+            <div class="col-md-6 text-center">
+                <img class="img img-responsive" src="/repository/xmlui/themes/UFAL/images/institutionalLogin.png"/>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 style="margin: 0px;">
+                2. Your Institution is not Listed
+            </h3>
+        </div>
+        <div class="panel-body">
+            <div class="col-md-12">
+                <p style="font-size: 120%;">
+                    In case your institution is not listed (but please try searching all the available countries and
+                    maybe also using the english name of your institution) the preffered approach is to create an
+                    account with <a href="https://user.clarin.eu/user/register" class="bold">CLARIN</a>. After you
+                    obtain your account, proceed to login with institution called "Clarin.eu website account".
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 style="margin: 0px;">
+                3. Local Accounts
+            </h3>
+        </div>
+        <div class="panel-body">
+            <div class="col-md-12">
+                <img class="img img-responsive pull-left" src="/repository/xmlui/themes/UFAL/images/serviceLogin.png" style="margin: 15px;"/>
+                <p style="font-size: 120%;">
+                    With a local account you will gain access to only one service, the one you've asked for. When you
+                    discover a different service in our infrastructure you'll need to ask again and again. The same goes
+                    for services in <a href="http://clarin.eu" class="bold">other eu countries</a> - you'll need to ask
+                    and ask and ask. Now it might not seem as that much when you think only one service, but when you
+                    think the whole infrastructure it means remembering login/password combination for each of these
+                    services. If you are convinced that this is what you need or have some other reason for wanting a
+                    local account please <span id="cloak2ff741263951b64cb0902fe5706d0f03"><a
+                        href="mailto:info@clarin.lv" class="bold">contact us</a></span>.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <h1>
+            Supported Organisations
+        </h1>
+        <h3>
+            From where you can login to our services
+        </h3>
+    </div>
+    <div style="font-size: 120%;">
+        <div>
+            <p>
+                In order to allow access from all over the world, LINDAT/CLARIN service provider is a member of several
+                identity federations including <a href="http://www.clarin.eu/content/service-provider-federation"
+                                                  class="bold">CLARIN SPF</a> and <a
+                    href="http://www.geant.net/service/eduGAIN/Pages/home.aspx" class="bold">eduGAIN</a>. Unfortunately,
+                some of these federations include identity providers who do not guarantee their users to be real people
+                (e.g., you can trace the account to an email but not to a person). We try to keep our services as open
+                as possible but there are cases (e.g., signing licenses in our repository) where anonymous users are
+                forbidden.
+            </p>
+            <p>
+                For that reason we choose to exclude users from test IdPs and from IdPs that let you create your
+                accounts online with no further background check.
+            </p>
+        </div>
+        <div class="text-danger">
+            <p>
+                We are blocking the following IdPs:
+            </p>
+            <ul>
+                <li>https://openidp.aco.net/saml</li>
+                <li>https://idp.protectnetwork.org/protectnetwork-idp</li>
+                <li>https://mojeid.cz/saml/idp.xml</li>
+                <li>https://umbrellaid.org/idp/shibboleth</li>
+                <li>Everyone having entity category http://refeds.org/category/hide-from-discovery</li>
+            </ul>
+
+        </div>
+        <div>
+            <p>
+                The implementation in shibboleth is illustrated below (snippets from shibbolet2.xml)
+            </p>
+            <pre class="col-md-8">&lt;!-- CLARIN SPF - Metadata about all IdPs in participating Identity Federations --&gt;
+&lt;MetadataProvider type=&quot;XML&quot; uri=&quot;https://infra.clarin.eu/aai/prod_md_about_clarin_erics_idp.xml&quot;
+                  backingFilePath=&quot;/etc/shibboleth/clarin-spf-metadata.xml&quot; reloadInterval=&quot;3600&quot;&gt;
+    &lt;MetadataFilter type=&quot;Blacklist&quot;&gt;
+        &lt;Exclude&gt;https://openidp.aco.net/saml&lt;/Exclude&gt;
+    &lt;/MetadataFilter&gt;
+&lt;/MetadataProvider&gt;
+
+&lt;!-- edugain --&gt;
+&lt;MetadataProvider type=&quot;XML&quot; uri=&quot;https://metadata.eduid.cz/entities/edugain+idp&quot;
+                             backingFilePath=&quot;/etc/shibboleth/edugain-metadata.xml&quot; reloadInterval=&quot;3600&quot;&gt;
+    &lt;MetadataFilter type=&quot;Blacklist&quot;&gt;
+        &lt;Exclude&gt;https://idp.protectnetwork.org/protectnetwork-idp&lt;/Exclude&gt;
+    &lt;/MetadataFilter&gt;
+
+    &lt;MetadataFilter type=&quot;Blacklist&quot; matcher=&quot;EntityAttributes&quot;&gt;
+        &lt;saml:Attribute Name=&quot;http://macedir.org/entity-category&quot; NameFormat=&quot;urn:oasis:names:tc:SAML:2.0:attrname-format:uri&quot;&gt;
+            &lt;saml:AttributeValue&gt;http://refeds.org/category/hide-from-discovery&lt;/saml:AttributeValue&gt;
+        &lt;/saml:Attribute&gt;
+    &lt;/MetadataFilter&gt;
+&lt;/MetadataProvider&gt;
+    </pre>
+        </div>
+    </div>
+
+    <div class="clearfix">
+    </div>
+    <div class="page-header">
+        <h1 id="logout">
+            Logging out
+        </h1>
+        <h3>
+            All logouts are application level only
+        </h3>
+    </div>
+    <div style="">
+        <div>
+            <p>When you click a logout button in any of our applications you are logged out from that application only;
+                the sp session and idp session are still active. In practice this means when you try to log in again you
+                might not be able to select an idp (the one you've used the last time is remembered) or you might not be
+                asked to enter username/password on your idp page (if you select the same idp, the idp remembers you for
+                some time). You can get more information about why single logout is hard at <a
+                        href="https://wiki.shibboleth.net/confluence/display/CONCEPT/SLOIssues">Shibboleth wiki</a>.
+            </p>
+            <p>
+                If you need to share your machine (eg. for a presentation) use anonymous/incognito mode of the browser
+                or close the browser (not just a tab); additionaly you might want to remove the cookies.
+            </p>
+        </div>
+    </div>
+</div>
