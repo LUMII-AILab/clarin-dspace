@@ -614,7 +614,7 @@
     <message key="xmlui.EPerson.WelcomeLogin.head1">Welcome to CLARIN-LV Repository</message>
     <message key="xmlui.EPerson.WelcomeLogin.head2">Privacy Statement</message>
     <message key="xmlui.EPerson.WelcomeLogin.para1">The information released by your IdP (home organisation) is shown below.</message>
-    <message key="xmlui.EPerson.WelcomeLogin.warn1"><div class="bold text-error">We use only the required attributes as stated in <a href="http://lindat.mff.cuni.cz/privacypolicy.html" target="_blank" class="bold">http://lindat.mff.cuni.cz/privacypolicy.html</a>.<BR />However, we may log the attributes and keep them for a time period.</div></message>
+    <message key="xmlui.EPerson.WelcomeLogin.warn1"><div class="bold text-error">We use only the required attributes as stated in <a href="https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=en" target="_blank" class="bold">https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=en</a>.<BR />However, we may log the attributes and keep them for a time period.</div></message>
     <message key="xmlui.EPerson.WelcomeLogin.buttonok">Return to Home</message>
 
 	<!-- org.dspace.app.xmlui.eperson.LDAPLogin.java -->

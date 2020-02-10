@@ -70,7 +70,7 @@
 	<message key="xmlui.administrative.ControlPanel.alerts_countdown_5">5 minūtes</message>
 	<message key="input_forms.value_pairs.metashare_sizeunit.5-grams">5 grami</message>
 	<message key="xmlui.administrative.collection.AssignCollectionRoles.repository_role"><br/>(repozitorija līmeņa grupa, tikai sistēmas administratori)</message>
-	<message key="xmlui.EPerson.WelcomeLogin.warn1"><div class="bold text-error">Mēs izmantojam tikai nepieciešamos atribūtus, kā norādīts <a class="bold" href="http://lindat.mff.cuni.cz/privacypolicy.html" target="_blank">http://lindat.mff.cuni.cz/privacypolicy.html</a>.<BR/> Tomēr mēs varam reģistrēt atribūtus un saglabāt tos uz noteiktu laiku.</div></message>
+	<message key="xmlui.EPerson.WelcomeLogin.warn1"><div class="bold text-error">Mēs izmantojam tikai nepieciešamos atribūtus, kā norādīts <a class="bold" href="https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=lv" target="_blank">https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=lv</a>.<BR/> Tomēr mēs varam reģistrēt atribūtus un saglabāt tos uz noteiktu laiku.</div></message>
 	<message key="xmlui.administrative.ControlPanel.alerts_session_note"><div class='alert bold'><i class='fa fa-info-circle fa-lg'>&#160;</i>Vietņu administratori ir atbrīvoti no sesiju pārvaldības.</div></message>
 	<message key="xmlui.ArtifactBrowser.RestrictedItem.head_item_claimed"><h4>Šo vienumu pārvalda cits repozitorijs</h4></message>
 	<message key="xmlui.ArtifactBrowser.RestrictedItem.head_item_withdrawn"><h4>Šis vienums ir atsaukts</h4></message>
