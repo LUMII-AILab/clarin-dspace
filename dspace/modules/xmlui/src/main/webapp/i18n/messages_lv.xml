@@ -870,7 +870,7 @@
 	<message key="xmlui.dri2xhtml.METS-1.0.cc-license-text">Ja nav norādīts citādi, šī vienuma licence ir aprakstīta kā</message>
 	<message key="xmlui.administrative.ItemExport.head">Eksportēt arhīvu</message>
 	<message key="xmlui.administrative.Navigation.context_export_collection">Eksportēt kolekciju</message>
-	<message key="xmlui.administrative.Navigation.context_export_community">Eksporta Kopiena</message>
+	<message key="xmlui.administrative.Navigation.context_export_community">Eksporta kopiena</message>
 	<message key="xmlui.administrative.Navigation.context_export_item">Eksportēt vienumu</message>
 	<message key="xmlui.administrative.Navigation.context_export_metadata">Eksportēt metadatus</message>
 	<message key="input_forms.value_pairs.metashare_sizeunit.expressions">izteiksmes</message>
@@ -1254,7 +1254,7 @@
 	<message key="xmlui.XMLWorkflow.workflow.ClaimAction.leave_submit">Atstāt uzdevumu</message>
 	<message key="xmlui.XMLWorkflow.workflow.ClaimAction.leave_help">Atstājiet šo uzdevumu pūlā, lai to varētu veikt cits lietotājs.</message>
 	<message key="xmlui.Submission.workflow.PerformTaskStep.leave_help">Atstājiet šo uzdevumu pūlā, lai to varētu veikt cits.</message>
-	<message key="input_forms.value_pairs.common_types.lexicalConceptualResource">Leksisks konceptuālisms</message>
+	<message key="input_forms.value_pairs.common_types.lexicalConceptualResource">Leksiski konceptuāls resurss</message>
 	<message key="input_forms.value_pairs.metashare_sizeunit.lexicalTypes">lexicaltypes</message>
 	<message key="input_forms.value_pairs.metashare_detailed_lexicalConceptualResource.lexicon">leksikons</message>
 	<message key="xmlui.ufal.UFALLicenceAgreement.head">Licences līgums</message>
@@ -1405,7 +1405,7 @@
 	<message key="xmlui.Submission.submit.ReviewStep.multiple_titles">Vairāki virsraksti</message>
 	<message key="input_forms.value_pairs.metashare_sizeunit.multiWordUnits">multiwordunits</message>
 	<message key="xmlui.EPerson.Navigation.my_account">Mans konts</message>
-	<message key="xmlui.administrative.Navigation.account_export">Mani eksportētāji</message>
+	<message key="xmlui.administrative.Navigation.account_export">Mani eksportējumi</message>
 	<message key="xmlui.Submission.general.mydspace_home">Manas mājas</message>
 	<message key="input_forms.value_pairs.metashare_sizeunit.n-grams">n-grammas</message>
 	<message key="input_forms.value_pairs.common_types.N/A">NAV</message>
@@ -1771,8 +1771,8 @@
 	<message key="xmlui.Discovery.RecentSubmissions.RecentSubmissionTransformer.trail">Nesenie iesniegumi</message>
 	<message key="xmlui.ArtifactBrowser.SiteViewer.head_recent_submissions">Nesen pievienots</message>
 	<message key="xmlui.Discovery.RecentSubmissions.RecentSubmissionTransformer.recent.head">Nesen pievienots</message>
-	<message key="input_forms.field.dc.relation.isreferencedby.label">Norāda</message>
-	<message key="xmlui.dri2xhtml.METS-1.0.item-relation-isreferencedby">Norāda</message>
+	<message key="input_forms.field.dc.relation.isreferencedby.label">Norāde</message>
+	<message key="xmlui.dri2xhtml.METS-1.0.item-relation-isreferencedby">Norāde</message>
 	<message key="xmlui.statisticsGoogleAnalytics.dates.refresh">Atsvaidzināt</message>
 	<message key="xmlui.EPerson.Navigation.register">Reģistrēt</message>
 	<message key="xmlui.EPerson.StartRegistration.submit_register">Reģistrēt</message>
@@ -2031,11 +2031,11 @@
 	<message key="input_forms.value_pairs.metashare_sizeunit.shots">uzņēmumi</message>
 	<message key="input_forms.field.local.hidden.label">Vai šis vienums ir jāpaslēpj no pārlūka/meklēšanas?</message>
 	<message key="xmlui.mirage2.discovery.showAdvancedFilters">Rādīt detalizētos filtrus</message>
-	<message key="xmlui.ArtifactBrowser.ItemViewer.show_full">Rādīt pilnu vienuma ierakstu</message>
-	<message key="xmlui.Submission.general.showfull">Rādīt pilnu vienuma ierakstu</message>
+	<message key="xmlui.ArtifactBrowser.ItemViewer.show_full">Rādīt pilnu ierakstu</message>
+	<message key="xmlui.Submission.general.showfull">Rādīt pilnu ierakstu</message>
 	<message key="xmlui.Submission.workflow.PerformTaskStep.record_format_help">Rādīt vienuma ierakstu vienkāršā/pilnā formātā</message>
-	<message key="xmlui.ArtifactBrowser.ItemViewer.show_simple">Rādīt vienkāršu vienumu ierakstu</message>
-	<message key="xmlui.Submission.general.showsimple">Rādīt vienkāršu vienumu ierakstu</message>
+	<message key="xmlui.ArtifactBrowser.ItemViewer.show_simple">Rādīt vienkāršu vienuma ierakstu</message>
+	<message key="xmlui.Submission.general.showsimple">Rādīt vienkāršu vienuma ierakstu</message>
 	<message key="xmlui.error.show_stack">Rādīt pamatā esošo kļūdu steku</message>
 	<message key="xmlui.aspect.versioning.VersioningNavigation.context_show_version_history">Rādīt versiju vēsturi</message>
 	<message key="xmlui.administrative.ControlPanel.show_hide">rādīt/paslēpt</message>
@@ -2703,7 +2703,7 @@
 	<message key="xmlui.administrative.registries.FormatRegistryMain.column1"></message>
 	<message key="xmlui.administrative.registries.MetadataRegistryMain.column1"></message>
 	<message key="xmlui.administrative.item.EditItemBitstreamsForm.column7"></message>
-	<message key="xmlui.dri2xhtml.default.textarea.value"></message>
+	<message key="xmlui.dri2xhtml.default.textarea.value"> </message>
 	<message key="xmlui.Submission.submit.UploadWithEmbargoStep.column1"></message>
 	<message key="xmlui.administrative.collection.AssignCollectionRoles.role_buttons"></message>
 	<message key="xmlui.administrative.community.AssignCommunityRoles.role_buttons"></message>
