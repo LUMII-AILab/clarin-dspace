@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<catalogue xml:lang="en" xmlns:i18n="http://apache.org/cocoon/i18n/2.1">
+<catalogue xml:lang="lv" xmlns:i18n="http://apache.org/cocoon/i18n/2.1">
 	<message key="xmlui.dri2xhtml.METS-1.0.qdc-not-applicable">Pašlaik Qualified Dublin Core (QDC) nav piemērojams DSpace kopienām un kolekcijām. Izmantojot QDC, jāizmanto QDC crosswalk DSpace vienumiem, un vai nu DIM vai MODS kopienu un kolekciju apstrādei.</message>
 	<message key="xmlui.dri2xhtml.METS-1.0.non-conformant">Šis nav METS 1.0 profilam atbilstošs DSpace objekts, un tāpēc to nevar efektīvi atveidot. Varat pārrakstīt veidni, kas apstrādā vispārīgo gadījumu dri2xhtml, lai veiktu nepieciešamo funkciju, vai izveidot savu veidni, kas atbilstu jūsu izmantotajam profilam.</message>
 	<message key="xmlui.Submission.submit.ReviewStep.no_metadata">-</message>
@@ -111,7 +111,7 @@
 	<message key="xmlui.Submission.submit.AccessStep.head">Piekļuves iestatījumi</message>
 	<message key="input_forms.value_pairs.metashare_mediums.accessibleThroughInterface">Pieejams ar interfeisu</message>
 	<message key="input_forms.field.local.sponsor.hint">Apliecināt sponsorus un finansētājus, kas atbalstīja šajā iesniegumā aprakstītos darbus.</message>
-	<message key="xmlui.UFAL.artifactbrowser.acknowledgement">Apstiprinājums</message>
+	<message key="xmlui.UFAL.artifactbrowser.acknowledgement">Atbalsts</message>
 	<message key="xmlui.Submission.submit.AccessStep.column1">Darbība</message>
 	<message key="xmlui.administrative.authorization.AdvacedAuthorizationsForm.actions_policyAction">Darbība</message>
 	<message key="xmlui.administrative.authorization.DeletePoliciesConfirm.head_action">Darbība</message>
@@ -881,7 +881,7 @@
 	<message key="xmlui.ChoiceLookupTransformer.fail">Neizdevās ielādēt izvēles datus:</message>
 	<message key="input_forms.value_pairs.metashare_validation.False">Nepatiess</message>
 	<message key="input_forms.complex_definitions.contact_person.2_surname.help">Ģimenes nosaukums</message>
-	<message key="xmlui.EPerson.Navigation.faq">BIEŽI UZDOTIE JAUTĀJUMI</message>
+	<message key="xmlui.EPerson.Navigation.faq">Bieži uzdotie jautājumi</message>
 	<message key="xmlui.mirage2.navigation.rss.feed">plūsma</message>
 	<message key="xmlui.ArtifactBrowser.Contact.feedback_link">Atsauksme</message>
 	<message key="xmlui.administrative.ControlPanel.mail_feedback_recipient">Atsauksmju saņēmējs</message>
@@ -1668,7 +1668,7 @@
 	<message key="input_forms.field.dc.subject.required">Lūdzu, ievadiet vismaz vienu ar jūsu iesniegto tēmu</message>
 	<message key="xmlui.Submission.submit.UploadStep.file_local_help">Lūdzu, ievadiet pilnu ceļu failam, kas pieejams lokālajā serverī vai http vietā.</message>
 	<message key="xmlui.Submission.submit.UploadWithEmbargoStep.file_help">Lūdzu, ievadiet pilnu faila ceļu datorā, kas atbilst jūsu vienumam. Ja noklikšķināsit uz “Pārlūkot...”, jauns logs ļaus atlasīt failu no datora.</message>
-	<message key="xmlui.Submission.submit.UploadStep.file_help">Lūdzu, ievadiet pilnu faila ceļu datorā, kas atbilst jūsu vienumam. Ja noklikšķināsit uz “Pārlūkot...”, jauns logs ļaus atlasīt failu no datora. <div class="alert">Augšupielādējot valodas resursus, lūdzu, mēģiniet izmantot kādu no LRT <a href="http://www.clarin.eu/sites/default/files/Standards%20for%20LRT-v6.pdf" target="_blank">standartos</a> minētajiem ieteicamajiem formātiem. Lai</div> <div class="alert">augšupielādētu <strong>failus, kas lielāki par {0}</strong>, nepieciešama īpaša apstrāde. Lūdzu, sazinieties ar <a class="helpdesk-tolink">palīdzības dienestu</a>, lai uzzinātu, kā augšupielādēt šos failus. Paldies par sapratni.</div></message>
+	<message key="xmlui.Submission.submit.UploadStep.file_help">Lūdzu, ievadiet pilnu faila ceļu datorā, kas atbilst jūsu vienumam. Ja noklikšķināsit uz “Pārlūkot...”, jauns logs ļaus atlasīt failu no datora. <div class="alert">Augšupielādējot valodas resursus, lūdzu, mēģiniet izmantot kādu no LRT <a href="http://www.clarin.eu/sites/default/files/Standards%20for%20LRT-v6.pdf" target="_blank">standartos</a> minētajiem ieteicamajiem formātiem. </div> <div class="alert"> Lai augšupielādētu <strong>failus, kas lielāki par {0}</strong>, nepieciešama īpaša apstrāde. Lūdzu, sazinieties ar <a class="helpdesk-tolink">palīdzības dienestu</a>, lai uzzinātu, kā augšupielādēt šos failus. Paldies par sapratni.</div></message>
 	<message key="xmlui.administrative.item.AddBitstreamForm.file_help">Lūdzu, ievadiet datora faila nosaukumu, kas atbilst jūsu vienumam. Ja noklikšķināsit uz “Pārlūkot...”, parādīsies jauns logs, kurā varat atrast un atlasīt failu no datora.</message>
 	<message key="xmlui.Submission.workflow.RejectTaskStep.info1">Lūdzu, tālāk esošajā lodziņā ievadiet iesniegšanas noraidīšanas iemeslu, norādot, vai iesniedzējs var novērst problēmu, un iesniedziet to atkārtoti.</message>
 	<message key="input_forms.field.local.contact.person.required">Lūdzu, aizpildiet visus kontaktpersonas laukus.</message>
