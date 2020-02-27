@@ -1,81 +1,43 @@
 <div id="faq-like">
 
-     <h2>Deposited Item Lifecycle</h2>
-
-     <hr />
-     <ul id="faqs-list">
-         <li><a href="#submitted-item">Submitted Item</a></li>
-         <li><a href="#edited-item">Edited Item</a></li>
-         <li><a href="#published-item">Published Item</a></li>
-         <li><a href="#modifying-item">Deleting and Modifying of Published Item</a></li>
-         <li><a href="#restricted-submissions">Restricted submissions</a></li>
-     </ul>
-     <hr />
-
-    <div>
-      <h3 id="submitted-item">Submitted Item</h3>
-      <p>After you <a href="deposit">deposit</a> a submission it will be inserted into a 
-      pool of submitted items. The item is not publicly available and waits for an editor
-      to approve (or reject) it.    
-      </p>
+     <h2>Izvietoto vienumu dzīves cikls</h2><hr><ul id="faqs-list">
+         <li><a href="#submitted-item">Iesniegtais vienums</a></li>
+         <li><a href="#edited-item">Rediģētais vienums</a></li>
+         <li><a href="#published-item">Publicētais vienums</a></li>
+         <li><a href="#modifying-item">Publicētā vienuma dzēšana un modificēšana</a></li>
+         <li><a href="#restricted-submissions">Ierobežoti iesniegumi</a></li>
+     </ul><hr><div>
+      <h3 id="submitted-item">Iesniegtais vienums</h3>
+      <p>Pēc iesnieguma<a href="deposit"></a> izvietošanas tas tiks novietots pie iesniegtajiem vienumiem. Vienums nav publiski pieejams un gaida redaktoru, lai to apstiprinātu (vai noraidītu).</p>
     </div>
 
     <div>
-      <h3 id="edited-item">Edited Item</h3>
-      <p>The task of the editor is to verify whether the submission meets our requirements in respect to 
-      metadata quality and completeness, bitstream consistency and IPR. The editor can return the submission to the data depositor 
-      describing the needed changes. This step is repeated until the editor approves the item. The approved item becomes a 
-      published item. 
-      </p>
+      <h3 id="edited-item">Rediģētais vienums</h3>
+      <p>Redaktora uzdevums ir pārbaudīt, vai iesniegums atbilst mūsu metadatu kvalitātes un atbilstības prasībām, bitstraumes konsekvencei un IPR. Redaktors var nosūtīt iesniegumu datu glabātājam, aprakstot nepieciešamās izmaiņas. Šis solis tiek atkārtots, līdz redaktors apstiprina vienumu. Apstiprinātais vienums top par publicētu vienumu.</p>
     </div>
 
     <div>
-      <h3 id="published-item">Published Item</h3>
-      <p>A published item obtains a PID (persistent identifier) which should be used for referencing and citing e.g., 
-      <strong>http://hdl.handle.net/11858/00-097C-0000-0022-F59C-8</strong>. The LINDAT repository will ensure that
-      the PID (more precisely, we use http handle proxy of the PID) will be resolved into a working web page (even if the current
-          server infrastructure changes or is moved)
-      describing your resource.    
-      </p>
+      <h3 id="published-item">Publicētais vienums</h3>
+      <p>Publicēts vienums iegūst PID (pastāvīgo identifikatoru), kas ir izmantojams citēšanai, piemēram, <strong>http://hdl.handle.net/11858/00-097C-0000-0022-F59C-8</strong>. LINDAT repozitorijs nodrošinās, ka PID (proti, mēs izmantojam PID http tura starpniekserveri) tiks atrisināts darba tīmekļa lapā (pat ja pašreizējā servera infrastruktūra mainās vai tiek pārvietota), aprakstot jūsu resursu.</p>
       
-      <p>
-      Published items are available through our search interface, browsing mode. Metadata of all items are submitted to 
-      search engines and are available through OAI-PMH protocol (several institutes harvest our repository for item's metadata
-      e.g., <a href="http://catalog.clarin.eu/vlo/">http://catalog.clarin.eu/vlo/</a>). Bitstreams of public submissions
-          (see <a href="#restricted-submissions">Restricted Submissions</a>) are also available through OAI-ORE protocol.
-      </p>
+      <p>Publicētie vienumi ir pieejami, izmantojot mūsu meklēšanas saskarni pārlūkošanas režīmā. Visu vienumu metadati tiek iesniegti meklētājprogrammām un ir pieejami, izmantojot OAI-PMH protokolu (vairākas iestādes iegūst mūsu krājumu metadatu glabātavu, piemēram, <a href="http://catalog.clarin.eu/vlo/">http://catalog.clarin.eu/vlo/</a>). Izmantojot OAI-ORE protokolu, ir arī pieejama publisko iesniegumu bitsplūsma (sk. <a href="#restricted-submissions">“Ierobežotās iesniegšanas”</a>).</p>
     </div>
 
     
     <div>
-      <h3 id="modifying-item">Deleting and Modifying of Published Item</h3>
-      <p>Anybody can request deletion of published items; however, these will be evaluated on case-by-case basis.
-      Furthermore, we reserve the right to keep the metadata of published submissions available
-      in case there is no specific reason why to delete the metadata. The reason is that it is against
-      the concept of PIDs (<strong>persistent</strong> identifiers).
-      All PIDs are available through OAI-PMH interface even if only to inform that the item
-      has been deleted.    
-      </p>
+      <h3 id="modifying-item">Publicētā vienuma dzēšana un modificēšana</h3>
+      <p>Ikviens var pieprasīt, lai publicētie vienumi tiktu dzēsti; tomēr tie tiks izvērtēti katrā gadījumā atsevišķi. Turklāt mēs paturam tiesības saglabāt publicēto iesniegumu metadatus, ja nav konkrēta iemesla dzēst metadatus, turklāt tas ir arī pretrunā PID jēdzienam (<strong>pastāvīgie</strong> identifikatori). Visi PID ir pieejami no OAI-PMH saskarnes, pat ja tikai informācijai, ka vienums ir izdzēsts.</p>
       
-      <p>We allow for minor edits of the submission (e.g., typos) through our <strong>Help Desk</strong>. These are also
-      evaluated on case-by-case basis. For major changes, the user is requested to submit a new version of that item
-      and we will indicate in the metadata that it is replaced by a newer version. 
-      </p>
+      <p>Mēs varam veikt nelielus iesnieguma (piemēram, drukas kļūdas) labojumus, izmantojot mūsu <strong>Palīdzības dienestu</strong>. Arī tas tiek izvērtēts katrā gadījumā atsevišķi. Būtisku izmaiņu gadījumā lietotājam ir jāiesniedz jauna vienuma versija, un metadatos mēs norādīsim, ka tas ir aizstāts ar jaunāku versiju.</p>
     </div>
 
     <div>
-      <h3 id="restricted-submissions">Restricted Submissions</h3>
-      <p>First of all, all metadata are always publicly available. We 
-      support open access submissions; however, we also support 
-      <strong>restrictive licences</strong> for bitstreams which require e-signing before downloading the bitstreams.
-      We keep track of these e-signatures in case there are IPR infringements.</p>
+      <h3 id="restricted-submissions">Ierobežoti iesniegumi</h3>
+      <p>Visi metadati vienmēr ir publiski pieejami. Lai arī mēs atbalstām brīvu piekļuvi, tomēr mēs arī atbalstām <strong>arī ierobežojošas licences</strong> bitplūsmām, kuras pirms lejupielādes ir elektroniski jāparaksta. Mēs sekojam līdzi šiem e-parakstiem, ja ir IĪT pārkāpumi.</p>
       
-       <p><a href="licenses">See currently available licenses</a> or <a class="helpdesk-tolink" href="#">ask us</a>
-      to add a specific one.</p>
+       <p><a href="licenses">Skatiet pašlaik pieejamās licences</a> vai <a class="helpdesk-tolink" href="#">lūdziet mums</a> pievienot konkrētu licenci.</p>
       
-      <p>We also support putting embargo on bitstreams which means that the bitstreams become publicly available
-      after specific dates.</p>
+      <p>Mēs atbalstām arī embargo noteikšanu bitplūsmai, proti, bitplūsmas ir publiski pieejamas pēc konkrētiem datumiem.</p>
     </div>
     
 </div>
-
