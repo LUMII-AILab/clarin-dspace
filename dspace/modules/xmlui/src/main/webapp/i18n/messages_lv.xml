@@ -52,7 +52,7 @@
 	<message key="xmlui.EPerson.WelcomeLogin.warn1"><div class="bold text-error">Mēs izmantojam tikai nepieciešamos atribūtus, kā norādīts <a class="bold" href="https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=lv" target="_blank">https://repository.clarin.lv/repository/xmlui/page/privacy-policy?locale-attribute=lv</a>.<BR/> Tomēr mēs varam reģistrēt atribūtus un saglabāt tos uz noteiktu laiku.</div></message>
 	<message key="xmlui.ArtifactBrowser.RestrictedItem.head_item_claimed"><h4>Šo vienumu pārvalda cits repozitorijs</h4></message>
 	<message key="xmlui.ArtifactBrowser.RestrictedItem.head_item_withdrawn"><h4>Šis vienums ir atsaukts</h4></message>
-	<message key="xmlui.Submission.submit.LicenseStep.resource_license_text"><i class="fa fa-3x fa-crosshairs  pull-left"></i> Licences atlasītājs sniegs jums vizuālu palīdzību, lai izvēlētos visatbilstošāko licenci jūsu datiem vai programmatūrai.</message>
+	<message key="xmlui.Submission.submit.LicenseStep.resource_license_text"><i class='fa fa-3x fa-crosshairs  pull-left'> </i> Licences atlasītājs sniegs jums vizuālu palīdzību, lai izvēlētos visatbilstošāko licenci jūsu datiem vai programmatūrai.</message>
 	<message key="xmlui.Submission.Submissions.untitled"><i>Bez nosaukuma</i></message>
 	<message key="xmlui.administrative.collection.AssignCollectionRoles.sysadmins_only"><nobr>(tikai sistēmas administratori)</nobr></message>
 	<message key="xmlui.administrative.collection.EditCollectionMetadataForm.sysadmins_only"><nobr>(tikai sistēmas administratori)</nobr></message>
