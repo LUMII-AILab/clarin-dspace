@@ -174,7 +174,7 @@ clean_source: deploy_logs
 clean_installation:
 	@cd $(DIR_BUILD) && $(ANT_WITH_CONF) clean_backups 2>&1 | $(HIDE_PASSW) | tee  $(DIR_DEPLOY_LOGS)/$@.log
 	
-compile: deploy_logs
+compile: deploy_logs dspace-oai/src/main/resources/iso-639-3.tab
 	@if [[ -f $@.sh ]]; then echo "Running customised $@"; bash $@.sh; fi 
 	@echo "COMPILING SOURCE ..."
 	@echo "Updating lr.compile.time..."
@@ -199,7 +199,7 @@ install_guru:   print_message \
 
 install_dspace: 
 	@if test -L $(DIR_LINDAT_THEME_IN_WEBAPPS); then unlink $(DIR_LINDAT_THEME_IN_WEBAPPS); fi
-	@echo "DEPLOYING LINDAT/CLARIN DSpace ..."
+	@echo "DEPLOYING CLARIN-DSpace ..."
 	@cd $(DIR_BUILD) &&  $(ANT_WITH_CONF) update 2>&1 | $(HIDE_PASSW) | tee $(DIR_DEPLOY_LOGS)/$@.log 
 	@$(MAKE) clean_installation
 	@echo "INSTALLATION SUCCESSFUL ..."
@@ -213,8 +213,12 @@ postinstall:
 	@echo "DEPLOYMENT (INSTALL + POSTINSTALL) SUCCESSFUL"
 
 fresh_install:
-	@echo "INSTALLING FRESH LINDAT/CLARIN DSpace ..."
-	@cd $(DIR_BUILD) && $(ANT_WITH_CONF) fresh_install 2>&1 | $(HIDE_PASSW) | tee $(DIR_DEPLOY_LOGS)/$@.log 
+	@echo "INSTALLING FRESH CLARIN-DSpace ..."
+	@cd $(DIR_BUILD) && $(ANT_WITH_CONF) fresh_install 2>&1 | $(HIDE_PASSW) | tee $(DIR_DEPLOY_LOGS)/$@.log
+
+
+dspace-oai/src/main/resources/iso-639-3.tab:
+	@if [[ ! -f $(DIR_SOURCE)/$@ ]]; then echo "Downloading iso-639-3.tab from sil.org"; wget -O $(DIR_SOURCE)/$@ https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3.tab; fi
 
 # Grant rights to installation
 grant_rights:

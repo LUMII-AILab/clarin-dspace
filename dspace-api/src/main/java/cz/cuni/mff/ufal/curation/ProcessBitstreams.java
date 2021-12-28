@@ -218,7 +218,8 @@ public class ProcessBitstreams extends AbstractCurationTask implements Consumer 
 	                b.addMetadata( schema, element, qualifier, Item.ANY, content );
 	                //don't add more than 1000 files
 	                if(++i >= 1000){
-	                    b.addMetadata(schema, element, qualifier, Item.ANY, String.format("%s|%d", "...", 0));
+	                    b.addMetadata(schema, element, qualifier, Item.ANY, String.format("%s|%d", "... too many " +
+                                "files ...", 0));
 	                    break;
                     }
 	            }

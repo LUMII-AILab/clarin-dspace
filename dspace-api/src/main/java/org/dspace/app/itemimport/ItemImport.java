@@ -789,7 +789,7 @@ public class ItemImport
         }
     }
 
-    private void replaceItems(Context c, Collection[] mycollections,
+    protected void replaceItems(Context c, Collection[] mycollections,
             String sourceDir, String mapFile, boolean template) throws Exception
     {
         // verify the source directory
@@ -957,8 +957,8 @@ public class ItemImport
                 try {
                     InstallItem.installItem(c, wi, myhandle);
                 } catch (Exception e) {
-                    wi.deleteAll();
                     log.error("Exception after install item, try to revert...", e);
+                    wi.deleteAll();
                     throw e;
                 }
 
@@ -1048,7 +1048,7 @@ public class ItemImport
     // utility methods
     ////////////////////////////////////
     // read in the map file and generate a hashmap of (file,handle) pairs
-    private Map<String, String> readMapFile(String filename) throws Exception
+    protected Map<String, String> readMapFile(String filename) throws Exception
     {
         Map<String, String> myHash = new HashMap<String, String>();
 
@@ -1100,7 +1100,7 @@ public class ItemImport
     }
 
     // Load all metadata schemas into the item.
-    private void loadMetadata(Context c, Item myitem, String path)
+    protected void loadMetadata(Context c, Item myitem, String path)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException
     {

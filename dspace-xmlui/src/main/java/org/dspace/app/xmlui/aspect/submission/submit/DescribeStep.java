@@ -105,7 +105,9 @@ public class DescribeStep extends AbstractSubmissionStep
         message("xmlui.Submission.submit.DescribeStep.report_no");
     protected static final Message T_missing_field =
             message("xmlui.Submission.submit.DescribeStep.missing_field");
-        
+    protected static final Message T_english_only =
+            message("xmlui.Submission.submit.DescribeStep.english_only");
+
         /**
      * A shared resource of the inputs reader. The 'inputs' are the
      * questions we ask the user to describe an item during the
@@ -243,14 +245,11 @@ public class DescribeStep extends AbstractSubmissionStep
                 }else {
                 	form.setHead(message("xmlui.Submission.submit.DescribeStep.head"+this.getPage()));
                 }
+                form.addItem("english-only-info", "alert alert-info").addContent(T_english_only);
 
                 // Fetch the document type (dc.type)
-                String documentType = "";
-                if( (item.getMetadataByMetadataString("dc.type") != null) && (item.getMetadataByMetadataString("dc.type").length >0) )
-                {
-                    documentType = item.getMetadataByMetadataString("dc.type")[0].value;
-                }
-                
+                Metadatum[] documentTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
+
                 // Iterate over all inputs and add it to the form.
                 for(DCInput dcInput : inputs)
                 {
@@ -258,7 +257,7 @@ public class DescribeStep extends AbstractSubmissionStep
                     boolean readonly = dcInput.isReadOnly(scope);
                     
                 	// Omit fields not allowed for this document type
-                    if(!dcInput.isAllowedFor(documentType))
+                    if(!dcInput.isAllowedFor(documentTypes))
                     {
                     	continue;
                     }
@@ -426,12 +425,8 @@ public class DescribeStep extends AbstractSubmissionStep
 
         // Fetch the document type (dc.type)
         Item item = submission.getItem();
-        String documentType = "";
-        if( (item.getMetadataByMetadataString("dc.type") != null) && (item.getMetadataByMetadataString("dc.type").length >0) )
-        {
-            documentType = item.getMetadataByMetadataString("dc.type")[0].value;
-        }
-        
+        Metadatum[] documentTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
+
 
         for (DCInput input : inputs)
         {
@@ -441,7 +436,7 @@ public class DescribeStep extends AbstractSubmissionStep
             {
                 continue;
             }
-	        if(!input.isAllowedFor(documentType))
+	        if(!input.isAllowedFor(documentTypes))
 			{
             	continue;
             }
@@ -1613,10 +1608,10 @@ public class DescribeStep extends AbstractSubmissionStep
         /**
          * should we render the metadata field based on field description?
          */
-        protected boolean isInputDisplayable(Context c, DCInput dcInput, String scope, String documentType)
+        protected boolean isInputDisplayable(Context c, DCInput dcInput, String scope, Metadatum[] documentTypes)
         {
             // Omit fields not allowed for this document type
-            if(!dcInput.isAllowedFor(documentType)) {
+            if(!dcInput.isAllowedFor(documentTypes)) {
                 return false;
             }
              

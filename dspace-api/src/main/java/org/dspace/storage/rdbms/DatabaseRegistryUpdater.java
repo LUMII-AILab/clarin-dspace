@@ -70,6 +70,7 @@ public class DatabaseRegistryUpdater implements FlywayCallback
             MetadataImporter.loadRegistry(base + "sword-metadata.xml", true);
             MetadataImporter.loadRegistry(base + "metashareSchema.xml", true);
             MetadataImporter.loadRegistry(base + "local-types.xml", true);
+            MetadataImporter.loadRegistry(base + "edm.xml", true);
 
             // Check if XML Workflow is enabled in workflow.cfg
             if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("xmlworkflow"))

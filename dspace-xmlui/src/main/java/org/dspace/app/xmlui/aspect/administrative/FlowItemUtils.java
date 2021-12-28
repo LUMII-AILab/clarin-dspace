@@ -679,6 +679,7 @@ public class FlowItemUtils
 				}
 	        	upload_name = filePath;
 			} catch (URISyntaxException | FileNotFoundException e) {
+				log.warn("Error while adding file. Check the path/url.", e);
 			}
 		}
 		

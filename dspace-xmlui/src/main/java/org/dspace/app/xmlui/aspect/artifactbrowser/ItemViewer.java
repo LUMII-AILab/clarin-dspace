@@ -7,23 +7,30 @@
  */
 package org.dspace.app.xmlui.aspect.artifactbrowser;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.io.StringWriter;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletResponse;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import cz.cuni.mff.ufal.DSpaceApi;
+import cz.cuni.mff.ufal.lindat.utilities.interfaces.IFunctionalities;
 import org.apache.cocoon.caching.CacheableProcessingComponent;
 import org.apache.cocoon.environment.ObjectModelHelper;
 import org.apache.cocoon.environment.Request;
 import org.apache.cocoon.environment.http.HttpEnvironment;
 import org.apache.cocoon.util.HashUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.excalibur.source.SourceValidity;
 import org.dspace.app.xmlui.cocoon.AbstractDSpaceTransformer;
 import org.dspace.app.xmlui.utils.DSpaceValidity;
@@ -40,11 +47,13 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Collection;
 import org.dspace.content.Metadatum;
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.Bitstream;
 import org.dspace.content.Item;
 import org.dspace.app.util.GoogleMetadata;
 import org.dspace.content.crosswalk.CrosswalkException;
 import org.dspace.content.crosswalk.DisseminationCrosswalk;
 import org.dspace.core.PluginManager;
+import org.dspace.services.ConfigurationService;
 import org.jdom.Element;
 import org.jdom.Text;
 import org.jdom.output.XMLOutputter;
@@ -52,13 +61,11 @@ import org.xml.sax.SAXException;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.app.sfx.SFXFileReader;
 import org.dspace.app.xmlui.wing.element.Metadata;
-import org.dspace.content.MetadataSchema;
-import org.dspace.identifier.IdentifierNotFoundException;
-import org.dspace.identifier.IdentifierNotResolvableException;
-import org.dspace.identifier.IdentifierProvider;
 import org.dspace.utils.DSpace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Display a single item.
@@ -95,6 +102,10 @@ public class ItemViewer extends AbstractDSpaceTransformer implements CacheablePr
             + File.separator + "config" + File.separator + "sfx.xml";
 
     private static final Logger log = LoggerFactory.getLogger(ItemViewer.class);
+
+    private ConfigurationService cs = new DSpace().getConfigurationService();
+
+    private final IFunctionalities functionalityManager = DSpaceApi.getFunctionalityManager();
 
     /**
      * Generate the unique caching key.
@@ -317,6 +328,65 @@ public class ItemViewer extends AbstractDSpaceTransformer implements CacheablePr
             // TODO: Is this the right exception class?
             throw new WingException(ce);
         }
+
+        addGoogleDatasetInfo(pageMeta, item);
+
+        addCommandLineInfo(pageMeta, item);
+    }
+
+    private void addCommandLineInfo(PageMeta pageMeta, Item item) throws WingException {
+        final Bitstream[] bitstreams;
+        try {
+            bitstreams = item.getNonInternalBitstreams();
+            if(bitstreams.length > 0){
+                functionalityManager.openSession();
+                if(functionalityManager.isUserAllowedToAccessTheResource(-1, bitstreams[0].getID())) {
+                    pageMeta.addMetadata("include-library", "cmdline-info");
+                }
+                functionalityManager.closeSession();
+            }
+        } catch (SQLException e) {
+            log.error("Exception while fetching bitstream of item " + item.getID(), e);
+        }
+    }
+
+    private void addGoogleDatasetInfo(PageMeta pageMeta, Item item) throws WingException {
+        if(shouldAddGoogleDatasetMetadataForItem(item)){
+            pageMeta.addMetadata("google_dataset").addContent(new GoogleDataset(item).toString());
+        }
+    }
+
+    private boolean shouldAddGoogleDatasetMetadataForItem(Item item) {
+        boolean datasetEnabled = cs.getPropertyAsType("google-dataset.enable", false);
+        if(!datasetEnabled){
+            return false;
+        }
+
+        boolean withBitstreamOnly = cs.getPropertyAsType("google-dataset.onlyItemsWithBitstreams", true);
+        if(withBitstreamOnly){
+            try {
+                boolean hasBitstream = item.getNonInternalBitstreams().length > 0;
+                if(!hasBitstream){
+                    return false;
+                }
+            } catch (SQLException e) {
+                log.error("Error while looking for bitstreams.", e);
+            }
+        }
+
+        String blacklistedTypes = cs.getProperty("google-dataset.blacklistedTypes");
+        if(isNotBlank(blacklistedTypes)){
+            String[] types = blacklistedTypes.split(",");
+            String itemType = item.getMetadata("dc.type");
+            if(itemType != null){
+                for(String type : types){
+                    if(itemType.equals(type.trim())){
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -452,5 +522,110 @@ public class ItemViewer extends AbstractDSpaceTransformer implements CacheablePr
     public void recycle() {
     	this.validity = null;
     	super.recycle();
+    }
+
+    private static class GoogleDataset{
+        private static final Set<String> mandatoryFields = new HashSet<>();
+        private static final HashMap<String, String> google2dspace = new HashMap<>();
+        // https://developers.google.com/search/docs/data-types/dataset#dataset specifies that description must be
+        // between 50 and 5000 characters
+        public static final int minDescriptionLength = 50;
+        public static final int maxDescriptionLength = 5000;
+
+        static {
+            mandatoryFields.add("name");
+            mandatoryFields.add("description");
+
+            google2dspace.put("name", "dc.title");
+            google2dspace.put("description", "dc.description");
+
+            String pathToProps = new DSpace().getConfigurationService().getPropertyAsType("google-metadata.config", "");
+            if(!pathToProps.trim().isEmpty()) {
+                Properties properties = new Properties();
+                try {
+                    BufferedReader reader = Files.newBufferedReader(Paths.get(pathToProps), StandardCharsets.UTF_8);
+                    properties.load(reader);
+                } catch (IOException e) {
+                    log.error("Exception while reading google-metadata.config", e);
+                }
+                for (String key : properties.stringPropertyNames()) {
+                    if (key.startsWith("google.dataset_")) {
+                        String googleKey = key.replace("google.dataset_", "").trim();
+                        google2dspace.put(googleKey, properties.getProperty(key).trim());
+                    }
+                }
+            }
+        }
+
+
+        private JsonObject jsonObject;
+        GoogleDataset(Item item){
+            jsonObject = new JsonObject();
+            jsonObject.addProperty("@context", "https://schema.org");
+            jsonObject.addProperty("@type", "Dataset");
+            for(Entry<String, String> entry : google2dspace.entrySet()){
+                String googleKey = entry.getKey();
+                String dspaceField = entry.getValue();
+                Metadatum[] metadata = item.getMetadataByMetadataString(dspaceField);
+                if(metadata.length == 1){
+                    jsonObject.addProperty(googleKey, metadata[0].value);
+                }else if(metadata.length > 1){
+                    JsonArray values = new JsonArray();
+                    for(Metadatum md : metadata){
+                        values.add(new JsonPrimitive(md.value));
+                    }
+                    jsonObject.add(googleKey, values);
+                }else if (mandatoryFields.contains(googleKey)){
+                    jsonObject.addProperty(googleKey, "(:unav)");
+                }else{
+                    continue;
+                }
+            }
+            convertToValidValues(jsonObject);
+        }
+
+        private void convertToValidValues(JsonObject jsonObject) {
+            String description = jsonObject.get("description").getAsString();
+            if(description.length() < minDescriptionLength){
+                int fill = minDescriptionLength - description.length();
+                String filler = StringUtils.repeat('.', fill);
+                jsonObject.addProperty("description", description + filler);
+            }else if(description.length() > maxDescriptionLength){
+                jsonObject.addProperty("description", description.substring(0, maxDescriptionLength));
+            }
+
+            if(jsonObject.has("creator")){
+                JsonElement creator = jsonObject.get("creator");
+                JsonArray creators = new JsonArray();
+                if(creator.isJsonPrimitive()){
+                    creators.add(creatorFromString(creator.getAsString()));
+                }else if(creator.isJsonArray()){
+                    for(JsonElement creatorEl : creator.getAsJsonArray()){
+                        creators.add(creatorFromString(creatorEl.getAsString()));
+                    }
+
+                }
+                jsonObject.add("creator", creators);
+            }
+        }
+
+        private JsonElement creatorFromString(String creator) {
+            JsonObject el = new JsonObject();
+            el.addProperty("@type", "Person");
+            el.addProperty("name", creator);
+            String[] parts = creator.split(",");
+            if(parts.length > 0){
+                el.addProperty("familyName", parts[0].trim());
+            }
+            if(parts.length > 1){
+                el.addProperty("givenName", parts[1].trim());
+            }
+            return el;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("\n<script type=\"application/ld+json\">\n%s\n</script>", jsonObject.toString());
+        }
     }
 }

@@ -514,6 +514,7 @@
 			<div class="author">
 				<xsl:choose>
 					<xsl:when test="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
+<<<<<<< HEAD
 						<xsl:for-each
 							select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
 							<span>
@@ -530,6 +531,9 @@
 								<xsl:text>; </xsl:text>
 							</xsl:if>
 						</xsl:for-each>
+=======
+			    			<xsl:call-template name="authors_with_short_summary_view"/>
+>>>>>>> upstream/clarin
 					</xsl:when>
 					<xsl:when test="dim:field[@element='creator']">
 						<xsl:for-each select="dim:field[@element='creator']">
@@ -888,9 +892,6 @@
 		<div class="col-md-5 col-lg-4 hidden-xs hidden-sm">
 			<div class="row">
 				<div style="height: 160px; position: relative;" class="col-md-7 col-lg-7">
-<!--					<a href="/lindat">-->
-<!--						<img src="{$context-path}/themes/UFAL/images/lindat/lindat-logo.png" style="position: absolute; height: 60%; top: 0px; bottom: 0px; margin: auto;" class="logo" alt="LINDAT/CLARIN logo" />-->
-<!--					</a>-->
 					<p></p>
 				</div>
 				<div style="height: 160px; position: relative;" class="col-md-5 col-lg-5">

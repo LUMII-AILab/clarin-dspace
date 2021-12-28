@@ -64,26 +64,17 @@ public class SetEmailStart extends AbstractDSpaceTransformer implements Cacheabl
     private static final Message T_head1 =
         message("xmlui.EPerson.StartRegistration.head1");
     
-    private static final Message T_para1 = 
-        message("xmlui.EPerson.StartRegistration.para1");
-    
-    private static final Message T_reset_password_for =
-        message("xmlui.EPerson.StartRegistration.reset_password_for");
-    
-    private static final Message T_submit_reset = 
-        message("xmlui.EPerson.StartRegistration.submit_reset");
-    
-    private static final Message T_head2 = 
+    private static final Message T_head2 =
         message("xmlui.EPerson.StartRegistration.head2");
     
     private static final Message T_para2 = 
-        message("xmlui.EPerson.StartRegistration.para2");
+        message("xmlui.EPerson.SetEmailStart.para2");
     
     private static final Message T_email_address =
         message("xmlui.EPerson.StartRegistration.email_address");
 
     private static final Message T_email_address_help =
-        message("xmlui.EPerson.StartRegistration.email_address_help");
+        message("xmlui.EPerson.SetEmailStart.email_address_help");
     
     private static final Message T_error_bad_email =
         message("xmlui.EPerson.StartRegistration.error_bad_email");

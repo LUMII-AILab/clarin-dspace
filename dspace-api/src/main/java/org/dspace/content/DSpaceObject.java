@@ -1223,6 +1223,7 @@ public abstract class DSpaceObject
         MetadataSchema schema = MetadataSchema.find(ourContext,dcv.schema);
         if (schema == null)
         {
+            log.warn(String.format("Failed to find schema \"%s\" using dc instead.", dcv.schema));
             schemaID = MetadataSchema.DC_SCHEMA_ID;
         }
         else

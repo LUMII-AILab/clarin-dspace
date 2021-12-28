@@ -2,11 +2,6 @@
 package cz.cuni.mff.ufal.curation;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.lang.reflect.Type;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,7 +11,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.apache.commons.io.IOUtils;
+import cz.cuni.mff.ufal.IsoLangCodes;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.dspace.app.util.DCInput;
@@ -28,9 +23,7 @@ import org.dspace.core.Context;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
 import org.dspace.handle.HandleManager;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import org.dspace.utils.DSpace;
 
 import static cz.cuni.mff.ufal.curation.RequiredMetadata.addMagicString;
 
@@ -43,16 +36,16 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
 
     public static final int CURATE_WARNING = -1000;
     /** Expected types. */
-    private static final String[] DCTYPE_VALUES = { 
-        "corpus", "lexicalConceptualResource", "languageDescription", "toolService" };
+    private static final String[] DCTYPE_VALUES = new DSpace().getConfigurationService().getPropertyAsType("lr.curation.metadata.expected.types" ,
+            new String[]{ "corpus", "lexicalConceptualResource", "languageDescription", "toolService" });
     private static final Set<String> DCTYPE_VALUES_SET = new HashSet<String>(
         Arrays.asList(DCTYPE_VALUES));
 
+    private static final String[] rightsMdStrings = {"dc.rights.uri", "dc.rights.label", "dc.rights"};
+
     private Map<String, String> _item_titles;
     private String _handle_prefix;
-    
-    private Map<String, String> _language_name_code_map;
-    private Map<String, String> _code_language_name_map;
+
     private Map<String, Integer> _complex_inputs;
 
     // The log4j logger for this class
@@ -70,43 +63,9 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
         _item_titles = new HashMap<String,String>();
         _handle_prefix = ConfigurationManager.getProperty("handle.canonical.prefix");
 
-        _language_name_code_map = new HashMap<String, String>();
-        _code_language_name_map = new HashMap<String, String>();
-        loadLanguageCodeMap();        
         _complex_inputs = new HashMap<String, Integer>();
         loadComplexInputs();
     }
-    
-    private void loadLanguageCodeMap() {
-		// TODO Auto-generated method stub
-        String dspaceUrl = ConfigurationManager.getProperty("dspace.url");
-        String jsonResourcePath = dspaceUrl + "/" + "static/json/iso_langs.json";
-        try {        	
-        	// obtain JSON object as a string
-			URL langJsonUrl = new URL(jsonResourcePath);
-			InputStream is = langJsonUrl.openStream();
-			StringWriter strWriter = new StringWriter();
-			IOUtils.copy(is, strWriter, "UTF-8");
-			String jsonStr = strWriter.toString();
-			
-			// obtain the JSON string as a map
-			Type type = new com.google.gson.reflect.TypeToken<Map<String, String>>(){}.getType();
-			Gson gson = new GsonBuilder().create();
-			_language_name_code_map = gson.fromJson(jsonStr, type);
-			
-			// iso code - language name map
-			for(Map.Entry<String, String> entry: _language_name_code_map.entrySet()) {
-				_code_language_name_map.put(entry.getValue(), entry.getKey());
-			}
-			
-			//log.info("LanguageMap:" + _language_name_code_map);
-
-		} catch (MalformedURLException e) {
-            log.error( "problems fetching iso_langs.json", e );
-		} catch (IOException e) {
-            log.error( "problems fetching iso_langs.json", e );
-		}
-	}
 
 	private void loadComplexInputs() {
 		try {
@@ -183,6 +142,8 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
                         validate_branding_consistency(item, dcs, results);
                         //
                         validate_rights_labels(item, dcs, results);
+                        //
+                        item_with_files_has_license(item);
                         //
                         validate_highly_recommended_metadata(item, dcs, results);
                         //
@@ -262,11 +223,10 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
             }
         }
     }
-    
+
     /**
      * Checks the language code (dc.language.iso) against the possible language codes
-     * (available via ${dspace.url}/static/json/iso_langs.json)
-     * 
+     *
      * @param item
      * @param dcs
      * @param results
@@ -275,10 +235,10 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
 
     private void validate_dc_language_iso(Item item, Metadatum[] dcs, StringBuilder results) throws CurateException {
     	Metadatum[] dcs_language_iso = item.getMetadataByMetadataString("dc.language.iso");
-        if ( dcs_language_iso != null || dcs_language_iso.length > 0) {
+        if ( dcs_language_iso != null ) {
         	for (Metadatum langCodeDC : dcs_language_iso) {
         		String langCode = langCodeDC.value;
-        		if (!_code_language_name_map.containsKey(langCode)) {
+        		if (IsoLangCodes.getLangForCode(langCode) == null) {
                     throw new CurateException(
                             String.format("Invalid language code - %s", langCode),
                             Curator.CURATE_FAIL );        			
@@ -512,6 +472,29 @@ public class ItemMetadataQAChecker extends AbstractCurationTask {
 			}
 		}
 	}
+
+	private void item_with_files_has_license(Item item) throws CurateException {
+        try {
+            boolean fail = false;
+            StringBuilder sb = new StringBuilder();
+            if (item.getNonInternalBitstreams().length > 0) {
+                for(String mdString : rightsMdStrings){
+                    final Metadatum[] vals = item.getMetadataByMetadataString(mdString);
+                    if(vals == null || vals.length == 0){
+                        fail = true;
+                        sb.append(mdString).append(", ");
+                    }
+                }
+            }
+            if(fail){
+                throw new CurateException("There are bitsreams but incomplete rights metadata. Missing: " + sb.toString(), Curator.CURATE_FAIL);
+            }
+        } catch (SQLException throwables) {
+            throw  new CurateException(throwables.getMessage(), Curator.CURATE_ERROR);
+        }
+
+
+    }
 
 } // class ItemMetadataQAChecker
 

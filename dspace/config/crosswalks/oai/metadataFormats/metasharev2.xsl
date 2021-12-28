@@ -359,7 +359,14 @@
 	   <xsl:if test="not($type='corpus')">
 	       <xsl:choose>
 	           <xsl:when test="/doc:metadata/doc:element[@name='metashare']/doc:element[@name='ResourceInfo#ContentInfo']/doc:element[@name='detailedType']/doc:element/doc:field[@name='value']">
-	               <xsl:value-of select="/doc:metadata/doc:element[@name='metashare']/doc:element[@name='ResourceInfo#ContentInfo']/doc:element[@name='detailedType']/doc:element/doc:field[@name='value']"/>
+                   <xsl:variable name="val"
+                                 select="/doc:metadata/doc:element[@name='metashare']/doc:element[@name='ResourceInfo#ContentInfo']/doc:element[@name='detailedType']/doc:element/doc:field[@name='value']"/>
+                   <xsl:choose>
+                       <xsl:when test="$type='languageDescription' and not($val='grammar')">other</xsl:when>
+                       <xsl:otherwise>
+                           <xsl:value-of select="$val"/>
+                       </xsl:otherwise>
+                   </xsl:choose>
 	           </xsl:when>
 	           <xsl:otherwise>
                    <xsl:value-of select="logUtil:logMissing('detailedType',$handle)"/>

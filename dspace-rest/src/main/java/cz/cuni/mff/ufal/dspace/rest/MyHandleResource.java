@@ -144,7 +144,7 @@ public class MyHandleResource extends Resource {
     @Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Handle updateHandle(Handle updatedHandle){
         org.dspace.core.Context context = null;
-        if(isNotBlank(updatedHandle.url) && !updatedHandle.url.contains(HandlePlugin.magicBean)
+        if(validHandleUrl(updatedHandle.url)
                 && isNotBlank(updatedHandle.handle) && isNotBlank(updatedHandle.token)){
             try {
                 context = new org.dspace.core.Context();

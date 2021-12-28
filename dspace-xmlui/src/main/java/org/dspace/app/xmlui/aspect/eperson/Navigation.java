@@ -36,6 +36,7 @@ import org.dspace.content.Item;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
+import org.dspace.services.ConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -101,7 +102,9 @@ public class Navigation extends AbstractDSpaceTransformer implements CacheablePr
 
 	/** Cached validity object */
 	private SourceValidity validity;
-	
+
+	private static final ConfigurationService configurationService= new org.dspace.utils.DSpace().getConfigurationService();
+
     /**
      * Generate the unique key.
      * This key must be unique inside the space of this component.
@@ -250,11 +253,16 @@ public class Navigation extends AbstractDSpaceTransformer implements CacheablePr
         
         // about
         about.setHead( T_about_head );
-        about.addItemXref( contextPath + "/page/deposit", T_deposit );
-        about.addItemXref( contextPath + "/page/cite", T_cite);
-        about.addItemXref( contextPath + "/page/item-lifecycle", T_lifecycle );
-        about.addItemXref( contextPath + "/page/faq", T_faq);
-        about.addItemXref( contextPath + "/page/about", T_about );
+        about.addItemXref(configurationService.getPropertyAsType("lr.navigation.deposit.link", contextPath + "/page/deposit"),
+                T_deposit);
+        about.addItemXref(configurationService.getPropertyAsType("lr.navigation.cite.link", contextPath + "/page/cite"),
+                T_cite);
+        about.addItemXref(configurationService.getPropertyAsType("lr.navigation.lifecycle.link", contextPath + "/page/item-lifecycle"),
+                T_lifecycle );
+        about.addItemXref(configurationService.getPropertyAsType("lr.navigation.faq.link", contextPath + "/page/faq"),
+                T_faq);
+        about.addItemXref(configurationService.getPropertyAsType("lr.navigation.about.link", contextPath + "/page/about"),
+                T_about );
         about.addItem().addXref("mailto:" + ConfigurationManager.getProperty("lr.help.mail"),T_helpdesk, "helpdesk");
         
         //context

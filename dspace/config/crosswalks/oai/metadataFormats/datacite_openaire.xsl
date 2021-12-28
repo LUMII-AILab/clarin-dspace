@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!-- Created for LINDAT/CLARIN based on DIM2DataCite https://guidelines.openaire.eu/wiki/OpenAIRE_Guidelines:_For_Data_Archives -->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-	xmlns:doc="http://www.lyncode.com/xoai"
-    xmlns:xalan="http://xml.apache.org/xslt"
-	exclude-result-prefixes="doc xalan" version="1.0">
+				xmlns:doc="http://www.lyncode.com/xoai"
+				xmlns:xalan="http://xml.apache.org/xslt"
+				xmlns:odc="http://schema.datacite.org/oai/oai-1.1/"
+				xmlns="http://datacite.org/schema/kernel-3"
+				exclude-result-prefixes="doc xalan" version="1.0">
 	<xsl:output omit-xml-declaration="yes" method="xml" indent="yes" />
 
     <!-- TODO implement Required & optional templates -->
 	<xsl:template match="/">
-		<oai_datacite>
-			<isReferenceQuality>true</isReferenceQuality>
-			<schemaVersion>3.0</schemaVersion>
-			<datacentreSymbol></datacentreSymbol>
-			<payload>
+		<odc:oai_datacite>
+			<odc:schemaVersion>3.1</odc:schemaVersion>
+			<odc:datacentreSymbol></odc:datacentreSymbol>
+			<odc:payload>
 				<resource>
 					<xsl:call-template name="Identifier_M" />
 					<xsl:call-template name="Creator_M" />
@@ -33,8 +34,8 @@
 					<xsl:call-template name="Description_MA" />
 					<xsl:call-template name="GeoLocation_R" />
 				</resource>
-			</payload>
-		</oai_datacite>
+			</odc:payload>
+		</odc:oai_datacite>
 	</xsl:template>
 
 	<xsl:template name="Identifier_M">

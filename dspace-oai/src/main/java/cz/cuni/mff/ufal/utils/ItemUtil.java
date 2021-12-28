@@ -78,7 +78,7 @@ public class ItemUtil {
 			Element fundsType = doc.createElementNS(ns, "fundsType");
 
 			String[] values = mdValue
-					.split(DCInput.ComplexDefinition.SEPARATOR);
+					.split(DCInput.ComplexDefinition.SEPARATOR, -1);
 
 			// mind the order in input forms, org;code;projname;type
 			Element[] elements = { organization, code, projName, fundsType };
@@ -108,7 +108,7 @@ public class ItemUtil {
 			Element affil = doc.createElementNS(ns, "affiliation");
 
 			String[] values = mdValue
-					.split(DCInput.ComplexDefinition.SEPARATOR);
+					.split(DCInput.ComplexDefinition.SEPARATOR, -1);
 
 			Element[] elements = { first, last, email, affil };
 			for (int i = 0; i < values.length; i++) {
@@ -135,7 +135,7 @@ public class ItemUtil {
 			Element unit = doc.createElementNS(ns, "unit");
 
 			String[] values = mdValue
-					.split(DCInput.ComplexDefinition.SEPARATOR);
+					.split(DCInput.ComplexDefinition.SEPARATOR, -1);
 
 			Element[] elements = {size, unit};
 			for (int i = 0; i < values.length; i++) {

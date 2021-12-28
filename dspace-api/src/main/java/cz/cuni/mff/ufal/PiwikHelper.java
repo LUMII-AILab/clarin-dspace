@@ -15,10 +15,7 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpression;
-import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.*;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -30,6 +27,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 public class PiwikHelper {
+	private static final String[] requiredStatsNames = {"nb_visits", "nb_uniq_visitors", "nb_pageviews",
+			"nb_uniq_pageviews", "nb_downloads", "nb_uniq_downloads"};
 
 
 	public static String mergeXML(String report, String downloadReport) throws Exception {
@@ -49,27 +48,7 @@ public class PiwikHelper {
 
 		for(int i=0;i<rRows.getLength();i++) {
 			Node rRow = rRows.item(i);
-			if(!rRow.hasChildNodes()) {
-				Element nb_visits = reportDoc.createElement("nb_visits");
-				nb_visits.setTextContent("0");
-				Element nb_uniq_visitors = reportDoc.createElement("nb_uniq_visitors");
-				nb_uniq_visitors.setTextContent("0");
-				Element nb_pageviews = reportDoc.createElement("nb_pageviews");
-				nb_pageviews.setTextContent("0");
-				Element nb_uniq_pageviews = reportDoc.createElement("nb_uniq_pageviews");
-				nb_uniq_pageviews.setTextContent("0");
-				Element nb_downloads = reportDoc.createElement("nb_downloads");
-				nb_downloads.setTextContent("0");
-				Element nb_uniq_downloads = reportDoc.createElement("nb_uniq_downloads");
-				nb_uniq_downloads.setTextContent("0");
-				rRow.appendChild(nb_visits);
-				rRow.appendChild(nb_uniq_visitors);
-				rRow.appendChild(nb_pageviews);
-				rRow.appendChild(nb_uniq_pageviews);
-				rRow.appendChild(nb_downloads);
-				rRow.appendChild(nb_uniq_downloads);
-			}
-
+			rRow = ensureRequiredStatsPresent(reportDoc, xpath, rRow);
 			Node down = (Node) downExpr.evaluate(rRow, XPathConstants.NODE);
 			Node uniqDown = (Node) uniqDownExpr.evaluate(rRow, XPathConstants.NODE);
 			XPathExpression pvExpr = xpath.compile(String.format("/results/result[@%s]/nb_pageviews/text()", rRow.getAttributes().getNamedItem("date")));
@@ -89,7 +68,20 @@ public class PiwikHelper {
 		tf.transform(new DOMSource(reportDoc), new StreamResult(out));
 		return out.toString();
 	}
-	
+
+	private static Node ensureRequiredStatsPresent(Document reportDoc, XPath xpath, Node rRow) throws XPathExpressionException {
+		for(String tagName : requiredStatsNames){
+			XPathExpression expr = xpath.compile("./" + tagName);
+			Node node = (Node) expr.evaluate(rRow, XPathConstants.NODE);
+			if(node == null){
+				Element el = reportDoc.createElement(tagName);
+				el.setTextContent("0");
+				rRow.appendChild(el);
+			}
+		}
+		return rRow;
+	}
+
 	public static String mergeJSON(String report, String downloadReport) throws Exception {
 		/**
 		 * add page views from downloadReport as nb_downloads to report

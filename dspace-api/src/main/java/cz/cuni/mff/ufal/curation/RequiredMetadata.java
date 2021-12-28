@@ -147,11 +147,7 @@ public class RequiredMetadata extends AbstractCurationTask
                 	colhandle = item.getOwningCollection().getHandle();
                 	checkExtra = checkExtraIds.contains(Integer.toString(item.getOwningCollection().getID()));
                 }
-                Metadatum[] itemTypeDCV = item.getMetadata("dc", "type", null, Item.ANY);
-                String itemType = null;
-                if(itemTypeDCV != null && itemTypeDCV.length >0){
-                	itemType = itemTypeDCV[0].value;
-                }
+                Metadatum[] itemTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
                 for (DCInput input : getReqList(colhandle,checkExtra))
                 {
                 	StringBuilder reqsb = new StringBuilder();
@@ -177,7 +173,7 @@ public class RequiredMetadata extends AbstractCurationTask
                     
                     if (!mdPatFound) {
                         Metadatum[] vals = item.getMetadataByMetadataString(req);
-                        if ((itemType == null || input.isAllowedFor(itemType)) && vals.length == 0)
+                        if ((itemTypes == null || itemTypes.length == 0 || input.isAllowedFor(itemTypes)) && vals.length == 0)
                         {
                             boolean issue_warning = true;
                         	if (mdEquivalenceMap.containsKey(req)) {

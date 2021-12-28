@@ -16,6 +16,24 @@ ufal.selectCollection = {
 	getSelectCommunityCommunitiesListDiv : function() {
 		return $('#cz_cuni_mff_ufal_dspace_app_xmlui_aspect_submission_submit_SelectCollectionStep_div_communities-list');
 	},
+
+	div_communities: function(html) {
+		return ufal.selectCollection.getSelectCommunityCommunitiesListDiv().html(html);
+	},
+
+	getCollectionsListDiv : function(){
+		return $("#collection_list");
+	},
+
+	div_collections: function(html){
+	    var where = ufal.selectCollection.getCollectionsListDiv();
+	    if(where.length){
+	    	return where.html(html);
+		}else {
+			return ufal.selectCollection.getSelectCommunityCommunitiesListDiv().after('<hr /><div' +
+				' id="collection_list">' + html + '</div>');
+		}
+	},
 		
 	getSelectCommunityCommunitiesListLinks : function() {
 		return $('#cz_cuni_mff_ufal_dspace_app_xmlui_aspect_submission_submit_SelectCollectionStep_div_communities-list a');
@@ -37,27 +55,28 @@ ufal.selectCollection = {
 		return $('#cz_cuni_mff_ufal_dspace_app_xmlui_aspect_submission_submit_SelectCollectionStep_field_communities-model');
 	},
 	
-	createCommunitiesGUI : function(model) {
+	createGUI : function(model, key) {
 		var html = '';				
 		html += '<div style="margin-bottom:20px;">';
-		html += '<div class="well well-light" style="display: table-row;" class="text-center" id="communities">';		
-		for ( var i in model.communities) {
+		html += '<div class="well well-light" style="display: table-row;" class="text-center" id="' + key +'">';
+		for ( var i in model[key]) {
 			if(i > 0) {
 				html += '<div style="display: table-cell; vertical-align: top; width: 2%;"></div>';
 			}
-			var community = model.communities[i];
+			var communityOrCollection = model[key][i];
+			var id = key + "_" + communityOrCollection.id;
 			html += '<div style="display: table-cell; vertical-align: top; width: 49%;">';
-			html += '<a href="#" class="thumbnail" style="display: block; line-height: inherit; padding: 1em 2em;" id="community_' + community.id + '">';			
-			if (community.logoURL != "") {
+			html += '<a href="#" class="thumbnail" style="display: block; line-height: inherit; padding: 1em 2em;" id="' + id + '">';
+			if (communityOrCollection.logoURL != "") {
 				html += '<div style="line-height: 200px; text-align: center;">';
-				html += '<img src="' + community.logoURL + '" alt="'
-						+ community.name + '" />';
+				html += '<img src="' + communityOrCollection.logoURL + '" alt="'
+						+ communityOrCollection.name + '" />';
 				html += '</div>';
 			}			
 			html += '<div style="min-height: 7em;">';
-			html += '<h4 class="text-center">' + community.name + '</h4>';
-			if (community.shortDescription != "") {
-				html += '<p>' + community.shortDescription + '</p>';
+			html += '<h4 class="text-center">' + communityOrCollection.name + '</h4>';
+			if (communityOrCollection.shortDescription != "") {
+				html += '<p>' + communityOrCollection.shortDescription + '</p>';
 			}
 			html += '</div>';
 			html += '</a>';
@@ -66,8 +85,12 @@ ufal.selectCollection = {
 		}		
 		html += '</div>';
 		html += '</div>';
-		ufal.selectCollection.getSelectCommunityCommunitiesListDiv().html(html);		
+		var appendTo = ufal.selectCollection['div_' + key](html);
 	},
+
+	createCommunitiesGUI : function(model) {
+		ufal.selectCollection.createGUI(model, 'communities');
+    },
 
 	getCommunitiesModel : function() {
 		var model = {};
@@ -89,7 +112,7 @@ ufal.selectCollection = {
 					select.append('<option value="' + collection.handle + '">'
 							+ collection.name + '</option>');
 				}
-				break;
+				return community;
 			}
 		}
 	},		
@@ -111,10 +134,38 @@ ufal.selectCollection = {
 		else {
 			ufal.selectCollection.getSelectCollectionSubmitButton().removeAttr('disabled');
 		}
+		$('html, body').delay(100).animate({
+			scrollTop: ufal.selectCollection.getSelectCollectionDiv().offset().top
+		}, 200);
 	},
-	
-	showNextButtonOnly : function() {		
-		ufal.selectCollection.getSelectCollectionDiv().hide();		
+
+	showCollectionsGUI2 : function(community, collectionSelect) {
+		ufal.selectCollection.createGUI(community, 'collections');
+		ufal.selectCollection.getCollectionsListDiv().find("a").on('click', function(){
+			ufal.selectCollection.getCollectionsListDiv().find(".alert-info").each(function(){
+				$(this).removeClass('alert-info');
+			});
+			var $this = $(this);
+			$this.toggleClass('alert-info');
+			var name = $this.attr('id');
+			var collectionID = name.replace(/^.*_(\d+)/, '$1');
+			var handle;
+			for (var i in community.collections){
+				var collection = community.collections[i];
+				if(collection.id == collectionID){
+					handle = collection.handle;
+					break;
+				}
+			}
+			if(handle) {
+				collectionSelect.find('option[value="' + handle + '"]').prop('selected', true);
+				ufal.selectCollection.getSelectCollectionSubmitButton().removeAttr('disabled');
+			}
+		});
+	},
+
+	showNextButtonOnly : function() {
+			ufal.selectCollection.getSelectCollectionDiv().hide();
 		ufal.selectCollection.getSelectCollectionSubmitButton().removeAttr('disabled');
 	},
 	
@@ -123,17 +174,18 @@ ufal.selectCollection = {
 		$(this).toggleClass('alert-info');			
 		var name = $(this).attr('id');
 		var communityID = name.replace(/^.*_(\d+)/, '$1');
-		ufal.selectCollection.populateCollections(communityID, ufal.selectCollection.model);
+		var community = ufal.selectCollection.populateCollections(communityID, ufal.selectCollection.model);
 		var collectionSelect = ufal.selectCollection.getSelectCollectionSelect();
 		if(collectionSelect.find('option').length == 2) {
 			collectionSelect.find('option:eq(1)').prop('selected', true);
 			ufal.selectCollection.showNextButtonOnly();			
 		}
 		else {
-			ufal.selectCollection.showCollectionsGUI();								
-			$('html, body').delay(100).animate({
-		        scrollTop: ufal.selectCollection.getSelectCollectionDiv().offset().top		        
-		    }, 200);
+			if(ufal.selectCollection.model.GUI2){
+				ufal.selectCollection.showCollectionsGUI2(community, collectionSelect)
+			}else{
+				ufal.selectCollection.showCollectionsGUI();
+			}
 		}
 		return false;
 	},

@@ -22,6 +22,7 @@
 	
 	<xsl:output indent="yes" />
 
+	<xsl:variable name="contextPath" select="concat('/', substring-after(substring-after(confman:getProperty('dspace.url'), '://'), '/'))"/>
 	<xsl:template name="itemSummaryView-DIM">
 		<!-- Generate the info about the item from the metadata section -->
 		<xsl:apply-templates
@@ -94,7 +95,6 @@
 				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:variable>
-		<xsl:variable name="contextPath" select="concat('/', substring-after(substring-after(confman:getProperty('dspace.url'), '://'), '/'))"/>
 
 
 		<xsl:choose>
@@ -188,23 +188,7 @@
 					<dd style="padding-right: 40px;">
 					<xsl:choose>
 						<xsl:when test="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
-							<xsl:for-each
-								select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
-								<span>
-									<xsl:if test="@authority">
-										<xsl:attribute name="class"><xsl:text>ds-dc_contributor_author-authority</xsl:text></xsl:attribute>
-									</xsl:if>
-									<a>
-								<xsl:attribute name="href"><xsl:copy-of select="$contextPath"/>/browse?value=<xsl:copy-of select="node()" />&amp;type=author</xsl:attribute>
-								<xsl:copy-of select="node()" />
-								</a>
-
-								</span>
-								<xsl:if
-									test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) != 0">
-									<xsl:text>; </xsl:text>
-								</xsl:if>
-							</xsl:for-each>
+							<xsl:call-template name="authors_with_short_summary_view" />
 						</xsl:when>
 						<xsl:when test="dim:field[@element='creator']">
 							<xsl:for-each select="dim:field[@element='creator']">
@@ -381,17 +365,27 @@
 
 			<!-- type row -->
 			<xsl:when
-				test="$clause = 9 and (dim:field[@element='type' and not(@qualifier)])">
+				test="$clause = 9 and ((dim:field[@element='type' and not(@qualifier)]) or (dim:field[@qualifier='mediaType']))">
 					<dl id="item-type" class="dl-horizontal">
 					<dt style="text-align: left">
 						<i class="fa fa-tag">&#160;</i>
 												<i18n:text>xmlui.dri2xhtml.METS-1.0.item-type</i18n:text>
 					</dt>
 					<dd>
-						<a>
-							<xsl:attribute name="href"><xsl:copy-of select="$contextPath"/>/browse?value=<xsl:value-of select="dim:field[@element='type'][not(@qualifier)][1]/node()" />&amp;type=type</xsl:attribute>
-							<xsl:value-of select="dim:field[@element='type'][not(@qualifier)][1]/node()" />
-						</a>							
+						<xsl:for-each
+								select="dim:field[(@element='type' and not(@qualifier)) or @qualifier='mediaType']">
+							<xsl:sort select="." />
+							<a>
+								<xsl:attribute name="href">
+									<xsl:value-of
+											select="concat($contextPath, '/discover?filtertype=type&amp;filter_relational_operator=equals&amp;filter=',encoder:encode(.))"/>
+								</xsl:attribute>
+								<xsl:value-of select="." />
+							</a>
+							<xsl:if test="position() != last()">
+								<xsl:text>, </xsl:text>
+							</xsl:if>
+						</xsl:for-each>
 					</dd>
 				</dl>
 				<xsl:call-template name="itemSummaryView-DIM-fields">
@@ -1035,9 +1029,13 @@
                                     </xsl:variable>
                                     <xsl:choose>
                                         <xsl:when test="@MIMETYPE='text/plain'">
-                                            <xsl:value-of select="$files" disable-output-escaping="yes" /> . . .
+                                            <pre>
+                                                <xsl:value-of select="$files"/> . . .
+                                            </pre>
                                         </xsl:when>
                                         <xsl:otherwise>
+                                            <!-- output is not escaped as ft:parse returns html element that we
+                                                 need to render -->
                                             <xsl:value-of select="ft:parse($files)" disable-output-escaping="yes" />
                                         </xsl:otherwise>
                                     </xsl:choose>
@@ -1191,127 +1189,10 @@
             <xsl:value-of select="concat($context-path, '/', substring-before($request-uri, '/piwik-statistics'))"/>
             <xsl:text disable-output-escaping="yes">/piwik</xsl:text>
         </xsl:variable>
-        
-        
-		<div id="piwik-charts" style="font-family: verdana;" interval='2 day'>
-			<xsl:attribute name="data-url"><xsl:value-of select="$reportURL" /></xsl:attribute>
-			
-		 <div class="alert alert-info">
-		 	<i class="fa fa-info-circle">&#160;</i>Click on a data point to summarize by year / month.
-		 </div>
-
-		  <ul class="nav nav-tabs" role="tablist">
-		    <li role="presentation" class="active" style="min-width: 200px;">        
-		      <a href="#views" aria-controls="views" role="tab" data-toggle="tab" style="color: #60a22a;"  class="text-center">
-		        <div class="bold text-center"><i class="fa fa-eye fa-2x">&#160;</i></div>
-		        <div>
-		          Views
-		          <span class="bold text-center" id="views_tab_count">&#160;</span>
-		        </div>        
-		      </a>
-		    </li>
-		    <li role="presentation" class="text-center" style="min-width: 200px;">
-		      <a href="#downloads" aria-controls="downloads" role="tab" data-toggle="tab" style="color: #1f78b4;" class="text-center">
-		        <div class="bold text-center"><i class="fa fa-download fa-2x">&#160;</i></div>
-		        <div>
-		     	     Downloads
-					<span class="bold text-center" id="downloads_tab_count">&#160;</span>
-		        </div>
-		      </a>
-		    </li>
-		  </ul>
-		  
-		  <div>
-		  	<div class="pull-right" style="margin-top: 10px; margin-right: 10px;"><h4 style="display: inline"><span class="label label-info"><span id="current_span" class="current_span"></span></span></h4> <a id="current_span_btn" style="display: none; margin-left: 10px;" class="btn btn-xs btn-primary"><strong>Back</strong></a></div>
-		  </div>
-
-		  <!-- Tab panes -->
-		  <div class="tab-content">
-		    <div role="tabpanel" class="tab-pane active" id="views" style="padding: 40px;">
-		      <div id="visits_over_time_chart" class="jqplot-target">
-		        <div id="piwik-loading" style="width: 100%; height: 100%; display: none;">
-		          <i class="fa fa-pulse fa-3x" >&#xf110;</i>
-		        </div>            
-		      </div>
-		    </div>
-		    <div role="tabpanel" class="tab-pane" id="downloads" style="padding: 40px;">
-		      <div id="downloads_over_time_chart" class="jqplot-target">
-		        <div id="piwik-loading" style="width: 100%; height: 100%; display: none;">
-		          <i class="fa fa-pulse fa-3x" >&#xf110;</i>
-		        </div>            
-		      </div>      
-		    </div>
-		  </div>
-
-	</div>
-	<div id="piwik-charts-msg" class="hide">
-	</div>        
-	
-
-                <!-- div class="panel panel-default">
-                        <div class="panel-heading bold"><i18n:text>xmlui.UFAL.artifactbrowser.piwik.views</i18n:text>
-				<a class="jqplot-to-picture pull-right" href="#" target-div="#visits_over_time_chart">
-					<i class="fa fa-file-image-o">&#160;</i>
-				</a>
-
-                        	<div class="dropdown pull-right">
-				<a id="export-dropdown" class="jqplot-export pull-right dropdown-toggle" href="#" data-toggle="dropdown" aria-expanded="true">
-                                        <i class="fa fa-share">&#160;</i>
-                                </a>
-                                <ul class="dropdown-menu" role="menu" aria-labelledby="export-dropdown">
-                                        <li role="presentation">
-                                                <a role="menuitem" tabindex="-1" target="_blank">
-                                                        <xsl:attribute name="href"><xsl:value-of select="$reportURL" /><xsl:text disable-output-escaping="yes">&amp;format=XML</xsl:text></xsl:attribute>
-                                                        XML
-                                                </a>
-                                        </li>
-                                        <li role="presentation">
-                                                <a role="menuitem" tabindex="-1" target="_blank">
-                                                        <xsl:attribute name="href">
-	                                                        <xsl:value-of select="$reportURL" />
-                                                        </xsl:attribute>
-                                                        JSON
-                                                </a>
-                                        </li>
-                                </ul>
-                        	</div>
-			</div>
-
-                        <div class="panel-body" style="padding: 20px;">
-                        <div id="visits_chart">
-                        <div id="visits_over_time_chart" class="jqplot-target">
-                                <xsl:attribute name="data-url">
-                                        <xsl:value-of select="$reportURL" />
-                                </xsl:attribute>
-                                <div id="piwik-loading" style="width: 100%; height: 100%; z-index=1; display: none;"><i class="fa fa-pulse fa-3x" >&#xf110;</i></div>
-                        </div>
-                        </div>
-                        <div id="visits_summary_report" style="margin-top: 30px;">
-                                <h4>Report</h4>
-                                <div class="views">&#160;</div>
-                                <div class="visits">&#160;</div>
-                                <div class="downloads">&#160;</div>
-                        </div>
-                        </div>
-                </div-->
-
-		<div id="jqplot-save-as-picture" class="modal fade">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<div class="modal-header">
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true"><i class="fa fa-times">&#160;</i></span></button>
-						<h4 class="modal-title"><i class="fa fa-file-image-o">&#160;</i> Export as Image</h4>
-      					</div>
-      					<div class="modal-body">
- 	     	 				<div class="alert alert-info" style="margin-top: 0px;">To save the image on your computer, right click on the image and select "Save Image As..."</div>
-						<div class="well well-white">
-							<img style="width: 100%;"/>
-						</div>
-      					</div>
-				</div><!-- /.modal-content -->
-			</div><!-- /.modal-dialog -->
-		</div><!-- /.modal -->
-        </xsl:template>
+        <div type="piwikchart">
+            <xsl:attribute name="data-url"><xsl:value-of select="$reportURL" /></xsl:attribute>
+        </div>
+    </xsl:template>
 
     <xsl:template name="versions-dropdown">
        <div id="view-versions" class="dropdown row">
@@ -1333,6 +1214,69 @@
                </button>
            </div>
        </div>
+    </xsl:template>
+
+    <xsl:variable name="etal_limit" select="5"/>
+    <xsl:template name="authors_with_short_summary_view">
+	<xsl:variable name="authors_count" select="count(dim:field[@element='contributor'][@qualifier='author' or @qualifier='other'])"/>
+	<xsl:choose>
+		<xsl:when test="$authors_count &gt; $etal_limit">
+			<details>
+				<summary>
+					<!-- APA 6+: A; et al. -->
+					<!-- this selects just the first author; it's a for-each loop to set a context for the print_author template -->
+					<xsl:for-each select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other'][position() = 1]">
+						<xsl:call-template name="print_author" />
+						<xsl:text>;</xsl:text>
+					</xsl:for-each>
+					<xsl:text> et al.</xsl:text>
+					<span style="display: list-item"><i18n:text>xmlui.UFAL.artifactbrowser.item_view.show_all_authors</i18n:text></span>
+				</summary>
+				<xsl:call-template name="print_all_authors" />
+			</details>
+		</xsl:when>
+		<xsl:otherwise>
+			<xsl:call-template name="few_authors_formatted" />
+		</xsl:otherwise>
+	</xsl:choose>
+    </xsl:template>
+
+    <xsl:template name="few_authors_formatted">
+	<xsl:for-each select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other'][position() &lt;= $etal_limit]">
+		<xsl:call-template name="print_author" />
+		<xsl:choose>
+			<xsl:when test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) = 1">
+				<xsl:text> and </xsl:text>
+			</xsl:when>
+			<xsl:when test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) &gt; 1">
+				<xsl:text>;</xsl:text>
+			</xsl:when>
+		</xsl:choose>
+	</xsl:for-each>
+    </xsl:template>
+
+    <xsl:template name="print_all_authors">
+	<xsl:for-each
+		select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
+		<xsl:call-template name="print_author" />
+		<xsl:if
+			test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) != 0">
+			<xsl:text>; </xsl:text>
+		</xsl:if>
+	</xsl:for-each>
+    </xsl:template>
+
+    <xsl:template name="print_author">
+	<span>
+		<xsl:if test="@authority">
+			<xsl:attribute name="class"><xsl:text>ds-dc_contributor_author-authority</xsl:text></xsl:attribute>
+		</xsl:if>
+		<a>
+	<xsl:attribute name="href"><xsl:copy-of select="$contextPath"/>/browse?value=<xsl:copy-of select="node()" />&amp;type=author</xsl:attribute>
+	<xsl:copy-of select="node()" />
+	</a>
+
+	</span>
     </xsl:template>
 </xsl:stylesheet>
 

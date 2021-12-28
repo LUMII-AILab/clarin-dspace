@@ -197,4 +197,12 @@ public class PiwikHelperTest {
         assertEquals("Uniq download sum differs", jsonUniqDownSum, xmlUniqDownSum);
     }
 
+    @Test
+    public void issue_917() throws Exception {
+        URL url = this.getClass().getResource("/piwik/issue_917_download_report.xml");
+        File drXml = new File(url.getFile());
+        url = this.getClass().getResource("/piwik/issue_917_view_report.xml");
+        File vrXml = new File(url.getFile());
+        PiwikHelper.mergeXML(FileUtils.readFileToString(vrXml), FileUtils.readFileToString(drXml));
+    }
 }

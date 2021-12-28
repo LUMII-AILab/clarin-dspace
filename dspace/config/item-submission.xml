@@ -169,6 +169,15 @@
 			<workflow-editable>true</workflow-editable>
 		</step>
 
+	 <!-- just display some information; no processing -->
+	 <step id="showinfo">
+		 <heading>submit.progressbar.showinfo</heading>
+		 <!-- returns complete; and just one page -->
+		 <processing-class>org.dspace.submit.step.SampleStep</processing-class>
+		 <xmlui-binding>cz.cuni.mff.ufal.dspace.app.xmlui.aspect.submission.submit.ShowInfoStep</xmlui-binding>
+		 <workflow-editable>true</workflow-editable>
+	 </step>
+
  </step-definitions>
 
  <!-- The submission-definitions map lays out the detailed definition of   -->
@@ -262,6 +271,20 @@
 			<step id="review" />
      
    </submission-process>
+     <!--
+     	the same steps as traditional; there's an extra first step that just displays extra information about the
+     	submission. It can be remove when the process (input-forms) for clariah is fine tuned.
+     -->
+	 <submission-process name="clariah">
+
+		 <step id="showinfo" />
+		 <step id="describe" />
+		 <step id="upload" />
+		 <step id="license" />
+		 <step id="moredetails" />
+		 <step id="review" />
+
+	 </submission-process>
 
  </submission-definitions>
 

@@ -55,6 +55,7 @@ public class DCInputsReader
     static final String PAIR_TYPE_NAME = "value-pairs-name";
     
     static final String COMPLEX_DEFINITION_REF = "complex-definition-ref";
+    public static final String TYPE_BIND_FIELD_ATTRIBUTE = "field";
 
     /** The fully qualified pathname of the form definition XML file */
     private String defsFile = ConfigurationManager.getProperty("dspace.dir")
@@ -495,7 +496,13 @@ public class DCInputsReader
 				} else if (tagName.equals("vocabulary")) {
 					String closedVocabularyString = getAttribute(nd, "closed");
 					field.put("closedVocabulary", closedVocabularyString);
-				}
+				} else if (tagName.equals("type-bind")){
+				    String typeField = getAttribute(nd, TYPE_BIND_FIELD_ATTRIBUTE);
+				    if(typeField == null || typeField.trim().isEmpty()){
+				        typeField = "dc.type";
+                    }
+				    field.put(TYPE_BIND_FIELD_ATTRIBUTE, typeField);
+                }
 			}
         }
         String missing = null;

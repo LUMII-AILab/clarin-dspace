@@ -98,10 +98,7 @@ public class UFALExtraMetadataStep extends DescribeStep
                 String last_repeatable_component = null;
                 
                 // Fetch the document type (dc.type)
-                String documentType = "";
-                if( (item.getMetadataByMetadataString("dc.type") != null) && (item.getMetadataByMetadataString("dc.type").length >0) ) {
-                    documentType = item.getMetadataByMetadataString("dc.type")[0].value;
-                }
+                Metadatum[] documentTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
 
                 String scope = submissionInfo.isInWorkflow() ? DCInput.WORKFLOW_SCOPE : DCInput.SUBMISSION_SCOPE;                
                 
@@ -126,7 +123,7 @@ public class UFALExtraMetadataStep extends DescribeStep
                         }
                     }                    
                     
-                    if ( !isInputDisplayable(context, dcInput, scope, documentType ) ) 
+                    if ( !isInputDisplayable(context, dcInput, scope, documentTypes ) )
                     {
                         continue;
                     }
@@ -431,18 +428,14 @@ public class UFALExtraMetadataStep extends DescribeStep
 
         // Fetch the document type (dc.type)
         Item item = submission.getItem();
-        String documentType = "";
-        if( (item.getMetadataByMetadataString("dc.type") != null) && (item.getMetadataByMetadataString("dc.type").length >0) )
-        {
-            documentType = item.getMetadataByMetadataString("dc.type")[0].value;
-        } 
-        
+        Metadatum[] documentTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
+
         for (DCInput input : inputs)
         {
             // If the input is invisible in this scope, then skip it.
             String scope = submissionInfo.isInWorkflow() ? DCInput.WORKFLOW_SCOPE : DCInput.SUBMISSION_SCOPE;
             
-            if(!isInputDisplayable(context, input, scope, documentType)) {
+            if(!isInputDisplayable(context, input, scope, documentTypes)) {
                 continue;
             }                                   
             

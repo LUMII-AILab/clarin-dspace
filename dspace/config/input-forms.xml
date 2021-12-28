@@ -13,6 +13,8 @@
 
     <form-map>
         <name-map collection-handle="default" form-name="traditional"/>
+        <!-- TODO real handle -->
+        <name-map collection-handle="123456789/2" form-name="clariah_submissions"/>
     </form-map>
 
 
@@ -359,6 +361,272 @@
                 </field>
             </page>
         </form>
+
+        <form name="clariah_submissions">
+            <page number="1">
+
+                <!-- Basic info
+                        +type for type binds
+                        title
+                      demoUrl
+                        date
+                        +admin only fields-->
+
+                <field>
+                    <dc-schema>edm</dc-schema>
+                    <dc-element>type</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.edm.type.label</label>
+                    <input-type value-pairs-name="edm_types">dropdown</input-type>
+                    <hint>input_forms.field.edm.type.hint</hint>
+                    <required>input_forms.field.edm.type.required</required>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>title</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.dc.title.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.title.hint</hint>
+                    <required>input_forms.field.dc.title.required</required>
+                </field>
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>demo</dc-element>
+                    <dc-qualifier>uri</dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.demo.uri.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.local.demo.uri.hint</hint>
+                    <required/>
+                    <regexp>http.*</regexp>
+                    <regexp-warning>input_forms.field.local.demo.uri.regexp-warning</regexp-warning>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>relation</dc-element>
+                    <dc-qualifier>isreferencedby</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.relation.isreferencedby.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.relation.isreferencedby.hint</hint>
+                    <required/>
+                    <regexp>http.*</regexp>
+                    <regexp-warning>input_forms.field.dc.relation.isreferencedby.regexp-warning</regexp-warning>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>date</dc-element>
+                    <dc-qualifier>issued</dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.dc.date.issued.label</label>
+                    <input-type>FormattedDate</input-type>
+                    <hint>input_forms.field.dc.date.issued.hint</hint>
+                    <required>input_forms.field.dc.date.issued.required</required>
+                    <class>with-datepicker</class>
+                </field>
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>hidden</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.hidden.label</label>
+                    <input-type value-pairs-name="hidden_list">list</input-type>
+                    <hint>input_forms.field.local.hidden.hint</hint>
+                    <required/>
+                    <acl>
+                        policy=deny,action=read,grantee-type=user,grantee-id=*
+                    </acl>
+                </field>
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>hasMetadata</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.hasMetadata.label</label>
+                    <input-type value-pairs-name="metashare_languageDependent">list</input-type>
+                    <!-- true/false value -->
+                    <hint>input_forms.field.local.hasMetadata.hint</hint>
+                    <required/>
+                    <acl>
+                        policy=deny,action=read,grantee-type=user,grantee-id=*
+                    </acl>
+                </field>
+
+            </page>
+
+            <page number="2">
+
+                <!-- who's involved
+                        authors
+                        publisher
+                        funding
+                        contact
+                -->
+
+
+                <!-- todo decide this -->
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>contributor</dc-element>
+                    <dc-qualifier>author</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.contributor.author.label</label>
+                    <input-type>name</input-type>
+                    <hint>input_forms.field.dc.contributor.author.hint</hint>
+                    <autocomplete>solr-author_ac-specific</autocomplete>
+                    <required>input_forms.field.dc.contributor.author.required</required>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>publisher</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.publisher.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.publisher.clariah.hint</hint>
+                    <autocomplete>solr-publisher_ac</autocomplete>
+                    <required>input_forms.field.dc.publisher.required</required>
+                </field>
+
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>dataProvider</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.dataProvider.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.local.dataProvider.hint</hint>
+                    <autocomplete>solr-dataProvider_ac</autocomplete>
+                    <required/>
+                </field>
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>contact</dc-element>
+                    <dc-qualifier>person</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.local.contact.person.label</label>
+                    <input-type complex-definition-ref="contact_person">complex</input-type>
+                    <hint>input_forms.field.local.contact.person.hint</hint>
+                    <required>input_forms.field.local.contact.person.required</required>
+                </field>
+
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>sponsor</dc-element>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.local.sponsor.label</label>
+                    <input-type complex-definition-ref="funding">complex</input-type>
+                    <hint>input_forms.field.local.sponsor.hint</hint>
+                </field>
+
+
+            </page>
+
+            <page number="3">
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>type</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.dc.type.clariah.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.type.clariah.hint</hint>
+                    <autocomplete>solr-dctype_ac</autocomplete>
+                    <required>input_forms.field.dc.type.clariah.required</required>
+                    <class>no-thumbs</class>
+                </field>
+                <!-- describe the resource -->
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>description</dc-element>
+                    <dc-qualifier/>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.dc.description.label</label>
+                    <input-type>textarea</input-type>
+                    <hint>input_forms.field.dc.description.hint</hint>
+                    <required>input_forms.field.dc.description.required</required>
+                </field>
+
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>language</dc-element>
+                    <dc-qualifier>iso</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.language.iso.clariah.label</label>
+                    <type-bind field="edm.type">TEXT</type-bind>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.language.iso.clariah.hint</hint>
+                    <autocomplete>json_static-iso_langs.json</autocomplete>
+                    <required>input_forms.field.dc.language.iso.clariah.required</required>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>language</dc-element>
+                    <dc-qualifier>iso</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.language.iso1.clariah.label</label>
+                    <type-bind field="edm.type">VIDEO,IMAGE,SOUND,3D</type-bind>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.language.iso1.clariah.hint</hint>
+                    <autocomplete>json_static-iso_langs.json</autocomplete>
+                    <required/>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>subject</dc-element>
+                    <dc-qualifier/>
+                    <!-- An input-type of twobox MUST be marked as repeatable -->
+                    <repeatable>true</repeatable>
+                    <repeatable-parse>true</repeatable-parse>
+                    <label>input_forms.field.dc.subject.label</label>
+                    <input-type>twobox</input-type>
+                    <hint>input_forms.field.dc.subject.clariah.hint</hint>
+                    <autocomplete>solr-subject_ac</autocomplete>
+                    <required>input_forms.field.dc.subject.required</required>
+                </field>
+
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>identifier</dc-element>
+                    <dc-qualifier>other</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.alternate.identifiers.label</label>
+                    <!-- qualdrop_value on dc.identifier messes with how we use dc.identifier.uri, even if uri is not
+                     in the pairs it's showed in submission and you can delete it.-->
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.alternate.identifiers.hint</hint>
+                    <required/>
+                </field>
+
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>size</dc-element>
+                    <dc-qualifier>info</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.local.size.info.label</label>
+                    <input-type complex-definition-ref="clariahSizeInfo">complex</input-type>
+                    <hint>input_forms.field.local.size.info.hint</hint>
+                </field>
+            </page>
+
+
+        </form>
     </form-definitions>
 
 
@@ -375,6 +643,72 @@
 
     <form-definitions-extra>
         <form name="traditional">
+            <page number="1">
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>submission</dc-element>
+                    <dc-qualifier>note</dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.submission.note.label</label>
+                    <input-type>textarea</input-type>
+                    <hint>input_forms.field.local.submission.note.hint</hint>
+                    <required/>
+                </field>
+
+                <!-- DC.Relation.Replaces -->
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>relation</dc-element>
+                    <dc-qualifier>replaces</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.relation.replaces.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.relation.replaces.hint</hint>
+                    <autocomplete>solr-handle_title_ac</autocomplete>
+                    <required/>
+                    <component-label> </component-label>
+                    <collapsible>Special fields</collapsible>
+                </field>
+
+                <!-- DC.Relation.IsReplacedBy -->
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>relation</dc-element>
+                    <dc-qualifier>isreplacedby</dc-qualifier>
+                    <repeatable>true</repeatable>
+                    <label>input_forms.field.dc.relation.isreplacedby.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.dc.relation.isreplacedby.hint</hint>
+                    <autocomplete>solr-handle_title_ac</autocomplete>
+                    <required/>
+                    <component-label> </component-label>
+                    <acl>
+                        policy=deny,action=read,grantee-type=user,grantee-id=*
+                    </acl>
+                </field>
+
+                <!-- Local.Embargo.TermsLift -->
+                <field>
+                    <dc-schema>local</dc-schema>
+                    <dc-element>embargo</dc-element>
+                    <dc-qualifier>termslift</dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>input_forms.field.local.embargo.termslift.label</label>
+                    <input-type>onebox</input-type>
+                    <hint>input_forms.field.local.embargo.termslift.hint</hint>
+                    <required/>
+                    <regexp>\d\d\d\d-\d\d-\d\d</regexp>
+                    <regexp-warning>input_forms.field.local.embargo.termslift.regexp-warning</regexp-warning>
+                    <component-label> </component-label>
+                    <acl>
+                        policy=deny,action=read,grantee-type=user,grantee-id=*
+                    </acl>
+                </field>
+
+            </page>
+        </form>
+
+        <form name="clariah_submissions">
             <page number="1">
                 <field>
                     <dc-schema>local</dc-schema>
@@ -474,10 +808,6 @@
                 <stored-value>govdoc</stored-value>
             </pair>
             <pair>
-                <displayed-value>input_forms.value_pairs.common_identifiers.uri</displayed-value>
-                <stored-value>uri</stored-value>
-            </pair>
-            <pair>
                 <displayed-value>input_forms.value_pairs.common_identifiers.isbn</displayed-value>
                 <stored-value>isbn</stored-value>
             </pair>
@@ -507,6 +837,28 @@
             <!--<pair> <displayed-value>Evaluation package</displayed-value> <stored-value>evaluationPackage</stored-value>
               </pair> -->
 
+        </value-pairs>
+        <value-pairs value-pairs-name="edm_types" dc-term="edm.type">
+            <pair>
+            <displayed-value>input_forms.value_pairs.edm_types.text</displayed-value>
+            <stored-value>TEXT</stored-value>
+            </pair>
+            <pair>
+            <displayed-value>input_forms.value_pairs.edm_types.video</displayed-value>
+            <stored-value>VIDEO</stored-value>
+            </pair>
+            <pair>
+            <displayed-value>input_forms.value_pairs.edm_types.sound</displayed-value>
+            <stored-value>SOUND</stored-value>
+            </pair>
+            <pair>
+            <displayed-value>input_forms.value_pairs.edm_types.image</displayed-value>
+            <stored-value>IMAGE</stored-value>
+            </pair>
+            <pair>
+            <displayed-value>input_forms.value_pairs.edm_types.3d</displayed-value>
+            <stored-value>3D</stored-value>
+            </pair>
         </value-pairs>
 
         <!-- default language order: (from dspace 1.2.1) langauges are in languages.js
@@ -711,6 +1063,14 @@
             <pair>
                 <displayed-value>input_forms.value_pairs.metashare_detailed_languageDescription.grammar</displayed-value>
                 <stored-value>grammar</stored-value>
+            </pair>
+            <pair>
+                <displayed-value>input_forms.value_pairs.metashare_detailed_languageDescription.mlmodel</displayed-value>
+                <stored-value>mlmodel</stored-value>
+            </pair>
+            <pair>
+                <displayed-value>input_forms.value_pairs.metashare_detailed_languageDescription.ngrammodel</displayed-value>
+                <stored-value>ngrammodel</stored-value>
             </pair>
             <pair>
                 <displayed-value>input_forms.value_pairs.metashare_detailed_languageDescription.other</displayed-value>
@@ -992,8 +1352,14 @@
         </definition>
 
         <definition name="sizeInfo">
-            <input name="1_size" type="text" regexp="\d+.?\d*" required="true"/>
+            <input name="1_size" type="text" regexp="\d+\.?\d*" required="true"/>
             <input name="2_unit" type="dropdown" pairs="metashare_sizeunit" label="input_forms.complex_definitions.sizeInfo.2_unit.label" required="true"/>
+        </definition>
+
+        <definition name="clariahSizeInfo">
+        <input name="1_size" type="text" regexp="\d+\.?\d*" required="true"/>
+        <input name="2_unit" type="text" label="input_forms.complex_definitions.sizeInfo.2_unit.label"
+               required="true" autocomplete="solr-local.size.info_comp"/>
         </definition>
     </form-complex-definitions>
 

@@ -1,6 +1,7 @@
 package cz.cuni.mff.ufal;
 
 import java.util.Hashtable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -44,25 +45,28 @@ public class FileTreeViewGenerator {
 			
 		} while((n=n.getNextSibling())!=null);
 		
-		int folderID = 0;
-		
+		AtomicInteger folderID = new AtomicInteger(0);
+
 		StringBuilder result = new StringBuilder();
 		result.append("<ul class='treeview'>");
 		for(FileInfo in : root.sub.values()) {
-			printFileInfo(in, result, ++folderID);
+			printFileInfo(in, result, folderID);
 		}
 		result.append("</ul>");
 		
 		return result.toString();
 	}
 	
-	static void printFileInfo(FileInfo f, StringBuilder result, int folderID) {
+	static void printFileInfo(FileInfo f, StringBuilder result, AtomicInteger folderID) {
+		String currentFolderId = "folder_" + folderID.incrementAndGet();
 		if(f.isDirectory) {
 			result.append("<li>");
-				result.append("<span class='foldername'><a role='button' data-toggle='collapse' href='#folder_" + folderID + "'>").append(f.name).append("</a></span>");
-				result.append("<ul id='folder_" + folderID + "' class='in' style='height: auto;'>");
+				result.append(String.format(
+						"<span class='foldername'><a role='button' data-toggle='collapse' href='#%s'>%s</a></span>",
+						currentFolderId, f.name));
+				result.append(String.format("<ul id='%s' class='in' style='height: auto;'>", currentFolderId));
 				for(FileInfo in : f.sub.values()) {
-					printFileInfo(in, result, ++folderID);
+					printFileInfo(in, result, folderID);
 				}
 				result.append("</ul>");
 			result.append("</li>");

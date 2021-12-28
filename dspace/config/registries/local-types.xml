@@ -93,6 +93,12 @@
         <qualifier>pmltq</qualifier>
         <scope_note>Links to data in PML-TQ</scope_note>
     </dc-type>
+    <dc-type>
+        <schema>local</schema>
+        <element>featuredService</element>
+        <qualifier>teitok</qualifier>
+        <scope_note>Links to data in TEITOK</scope_note>
+    </dc-type>
 	<dc-type>
         <schema>local</schema>
         <element>bitstream</element>
@@ -116,6 +122,19 @@
         <element>withdrawn</element>
         <qualifier>reason</qualifier>
         <scope_note>Store the withdrawal reason in addition to provenance</scope_note>
+    </dc-type>
+    <dc-type>
+        <schema>local</schema>
+        <element>refbox</element>
+        <qualifier>format</qualifier>
+        <scope_note>If the default refbox citation is not enough, use this field to provide a format string
+            . Check/extend html.xsl for available variables.</scope_note>
+    </dc-type>
+    <dc-type>
+        <schema>local</schema>
+        <element>dataProvider</element>
+        <scope_note>Where the data comes from, and who to attribute. Filled in especially when different
+            from dc.publisher</scope_note>
     </dc-type>
 </dspace-dc-types>
 

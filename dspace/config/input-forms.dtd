@@ -29,6 +29,7 @@
  <!ELEMENT dc-element (#PCDATA) >
  <!ELEMENT dc-qualifier (#PCDATA) >
  <!ELEMENT type-bind (#PCDATA) >
+ <!ATTLIST type-bind field CDATA #IMPLIED >
  
  <!ELEMENT repeatable (#PCDATA) >
  <!ELEMENT repeatable-component (#PCDATA) >

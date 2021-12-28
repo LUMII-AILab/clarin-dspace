@@ -161,10 +161,11 @@ public class DescribeStep extends AbstractProcessingStep
         }
 
         // Fetch the document type (dc.type)
-        String documentType = "";
-        if( (item.getMetadataByMetadataString("dc.type") != null) && (item.getMetadataByMetadataString("dc.type").length >0) )
+        Metadatum[] documentTypes = null;
+        if( (item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY) != null) && (item.getMetadata(Item.ANY, "type",
+                Item.ANY, Item.ANY).length > 0) )
         {
-            documentType = item.getMetadataByMetadataString("dc.type")[0].value;
+            documentTypes = item.getMetadata(Item.ANY, "type", Item.ANY, Item.ANY);
         }
         
         // Step 1:
@@ -208,7 +209,7 @@ public class DescribeStep extends AbstractProcessingStep
         for (int j = 0; j < inputs.length; j++)
         {
         	// Omit fields not allowed for this document type
-            if(!inputs[j].isAllowedFor(documentType))
+            if(!inputs[j].isAllowedFor(documentTypes))
             {
             	continue;
             }
@@ -339,7 +340,7 @@ public class DescribeStep extends AbstractProcessingStep
             {
             	// Do not check the required attribute if it is not visible or not allowed for the document type
             	String scope = subInfo.isInWorkflow() ? DCInput.WORKFLOW_SCOPE : DCInput.SUBMISSION_SCOPE;
-                if ( !( inputs[i].isVisible(scope) && inputs[i].isAllowedFor(documentType) ) )
+                if ( !( inputs[i].isVisible(scope) && inputs[i].isAllowedFor(documentTypes) ) )
                 {
                 	continue;
                 }

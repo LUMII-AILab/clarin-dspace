@@ -32,6 +32,8 @@ import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Constants;
 import org.dspace.handle.HandleManager;
+import org.dspace.services.ConfigurationService;
+import org.dspace.utils.DSpace;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.xml.sax.SAXException;
@@ -73,6 +75,8 @@ public class SelectCollectionStep extends AbstractSubmissionStep
     protected static final Message T_single_collection_help = message("xmlui.Submission.submit.SelectCollection.single_collection_help");
 
     protected static final Message T_submit_next = message("xmlui.Submission.general.submission.next");
+
+    private final ConfigurationService configurationService = new DSpace().getConfigurationService();
 
     private class CommunityComparator implements Comparator<Community>
     {
@@ -296,6 +300,8 @@ public class SelectCollectionStep extends AbstractSubmissionStep
 
         modelJo.put("communities", communitiesJa);
 
+        modelJo.put("GUI2", configurationService.getPropertyAsType("lr.SelectCollectionStep.TopLevelOnly", false));
+
         return modelJo;
     }
 
@@ -312,12 +318,17 @@ public class SelectCollectionStep extends AbstractSubmissionStep
             Collection[] collections) throws SQLException
     {
         Map<Community, java.util.List<Collection>> model = new HashMap<Community, java.util.List<Collection>>();
+        boolean onlyTopLevel = configurationService.getPropertyAsType("lr.SelectCollectionStep.TopLevelOnly", false);
 
         for (Collection collection : collections)
         {
             Community[] communities = collection.getCommunities();
             for (Community community : communities)
             {
+                if(onlyTopLevel && community.getParentCommunity() != null){
+                    continue;
+                }
+
                 if (model.containsKey(community))
                 {
                     java.util.List<Collection> communityCollections = (java.util.List<Collection>) model

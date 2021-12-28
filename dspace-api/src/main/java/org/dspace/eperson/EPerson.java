@@ -315,7 +315,10 @@ public class EPerson extends DSpaceObject
                 " LEFT JOIN metadatavalue fn on (resource_id=e.eperson_id AND fn.resource_type_id=? and fn.metadata_field_id=?) " +
                 " LEFT JOIN metadatavalue ln on (ln.resource_id=e.eperson_id AND ln.resource_type_id=? and ln.metadata_field_id=?) " +
                 " WHERE e.eperson_id = ? OR " +
-                "LOWER(fn.text_value) LIKE LOWER(?) OR LOWER(ln.text_value) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) ORDER BY  ");
+                "COALESCE(LOWER(fn.text_value),'') LIKE LOWER(?) OR " +
+                "COALESCE(LOWER(ln.text_value),'') LIKE LOWER(?) OR " +
+                "COALESCE(LOWER(email),'') LIKE LOWER(?) " +
+                "ORDER BY  ");
 
         queryBuf.append(order_by);
 
@@ -455,26 +458,22 @@ public class EPerson extends DSpaceObject
 		}
 
 		// Get all the epeople that match the query
-		TableRow row = DatabaseManager.querySingle(context,
-		        "SELECT count(*) as epcount FROM eperson " +
-                "WHERE eperson_id = ? OR " +
-		        "LOWER((select text_value from metadatavalue where resource_id=? and resource_type_id=? and metadata_field_id=?)) LIKE LOWER(?) " +
-                "OR LOWER((select text_value from metadatavalue where resource_id=? and resource_type_id=? and metadata_field_id=?)) LIKE LOWER(?) " +
-                "OR LOWER(eperson.email) LIKE LOWER(?)",
+		TableRow row = DatabaseManager.querySingle(context,"select count(e.*) as epcount from eperson e " +
+                        " LEFT JOIN metadatavalue fn on (resource_id=e.eperson_id AND fn.resource_type_id=? and fn.metadata_field_id=?) " +
+                        " LEFT JOIN metadatavalue ln on (ln.resource_id=e.eperson_id AND ln.resource_type_id=? and ln.metadata_field_id=?) " +
+                        " WHERE e.eperson_id = ? OR " +
+                        "COALESCE(LOWER(fn.text_value),'') LIKE LOWER(?) OR " +
+                        "COALESCE(LOWER(ln.text_value),'') LIKE LOWER(?) OR " +
+                        "COALESCE(LOWER(email),'') LIKE LOWER(?)",
 		        new Object[] {
-                        int_param,
-
-                        int_param,
                         Constants.EPERSON,
                         MetadataField.findByElement(context, MetadataSchema.find(context, "eperson").getSchemaID(), "firstname", null).getFieldID(),
-                        dbquery,
 
-                        int_param,
                         Constants.EPERSON,
                         MetadataField.findByElement(context, MetadataSchema.find(context, "eperson").getSchemaID(), "lastname", null).getFieldID(),
-                        dbquery,
 
-                        dbquery
+                        int_param,
+                        dbquery, dbquery, dbquery
                 });
 				
 		// use getIntColumn for Oracle count data

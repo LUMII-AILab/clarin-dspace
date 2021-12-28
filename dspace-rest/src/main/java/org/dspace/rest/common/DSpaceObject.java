@@ -37,7 +37,7 @@ public class DSpaceObject {
     @XmlElement(name = "link", required = true)
     private String link;
 
-    private ArrayList<String> expand = new ArrayList<String>();
+    private List<String> expand = new ArrayList<String>();
 
     public DSpaceObject() {
 
@@ -92,7 +92,7 @@ public class DSpaceObject {
         return expand;
     }
 
-    public void setExpand(ArrayList<String> expand) {
+    public void setExpand(List<String> expand) {
         this.expand = expand;
     }
 

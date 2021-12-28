@@ -11,6 +11,7 @@ import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
 import org.dspace.content.MetadataSchema;
+import org.dspace.content.Metadatum;
 import org.dspace.core.Context;
 import org.xml.sax.SAXException;
 
@@ -110,7 +111,7 @@ public class DCInput
     private boolean closedVocabulary = false;
 
     /** allowed document types */
-    private List<String> typeBind = null;
+    private Map<String, List<String>> typeBind = new HashMap<>();
 
 	private ComplexDefinition complexDefinition = null;   
  	
@@ -199,13 +200,21 @@ public class DCInput
                             || "yes".equalsIgnoreCase(closedVocabularyStr);
         
         // parsing of the <type-bind> element (using the colon as split separator)
-        typeBind = new ArrayList<String>();
         String typeBindDef = fieldMap.get("type-bind");
         if(typeBindDef != null && typeBindDef.trim().length() > 0) {
         	String[] types = typeBindDef.split(",");
+        	List<String> boundTypes = new ArrayList<>();
         	for(String type : types) {
-        		typeBind.add( type.trim() );
+        		boundTypes.add( type.trim() );
         	}
+            String typeBindField = fieldMap.get(DCInputsReader.TYPE_BIND_FIELD_ATTRIBUTE);
+        	List<String> existingTypes = typeBind.get(typeBindField);
+        	if(existingTypes == null){
+        	    typeBind.put(typeBindField, boundTypes);
+            }else{
+        	    existingTypes.addAll(boundTypes);
+            }
+
         }
         
     }
@@ -520,14 +529,24 @@ public class DCInput
 
 	/**
 	 * Decides if this field is valid for the document type
-	 * @param typeName Document type name
+	 * @param types Document type Metadata
 	 * @return true when there is no type restriction or typeName is allowed
 	 */
-	public boolean isAllowedFor(String typeName) {
+	public boolean isAllowedFor(Metadatum[] types) {
 		if(typeBind.size() == 0)
 			return true;
-		
-		return typeBind.contains(typeName);
+
+		if(types != null) {
+            for (Metadatum md : types) {
+                String fieldName = md.getField();
+                List<String> allowedTypes = typeBind.get(fieldName);
+                if(allowedTypes != null && allowedTypes.contains(md.value)){
+                    return true;
+                }
+            }
+        }
+
+		return false;
 	}
 	
   /**
