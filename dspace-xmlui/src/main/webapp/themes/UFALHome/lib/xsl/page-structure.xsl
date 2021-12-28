@@ -514,26 +514,7 @@
 			<div class="author">
 				<xsl:choose>
 					<xsl:when test="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
-<<<<<<< HEAD
-						<xsl:for-each
-							select="dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']">
-							<span>
-								<xsl:if test="@authority">
-									<xsl:attribute name="class"><xsl:text>ds-dc_contributor_author-authority</xsl:text></xsl:attribute>
-								</xsl:if>
-                                <a>
-									<xsl:attribute name="href"><xsl:copy-of select="$context-path"/>/browse?value=<xsl:copy-of select="node()" />&amp;type=author</xsl:attribute>
-									<xsl:copy-of select="node()" />
-								</a>
-							</span>
-							<xsl:if
-								test="count(following-sibling::dim:field[@element='contributor'][@qualifier='author' or @qualifier='other']) != 0">
-								<xsl:text>; </xsl:text>
-							</xsl:if>
-						</xsl:for-each>
-=======
 			    			<xsl:call-template name="authors_with_short_summary_view"/>
->>>>>>> upstream/clarin
 					</xsl:when>
 					<xsl:when test="dim:field[@element='creator']">
 						<xsl:for-each select="dim:field[@element='creator']">
