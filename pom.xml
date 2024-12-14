@@ -1005,7 +1005,7 @@
          <dependency>
             <groupId>org.dspace</groupId>
             <artifactId>handle</artifactId>
-            <version>6.2</version>
+            <version>6.2.5_03</version>
          </dependency>
          <dependency>
             <groupId>org.dspace</groupId>
@@ -1227,7 +1227,7 @@
          <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.2.1.jre7</version>
+            <version>42.6.0</version>
          </dependency>
          <dependency>
             <groupId>com.oracle</groupId>
