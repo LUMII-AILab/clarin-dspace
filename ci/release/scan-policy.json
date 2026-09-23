@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "id": "synthetic-report-v1",
+  "scope": "synthetic-preparation-only",
+  "scanner_errors": "fail",
+  "findings": "report-only",
+  "production_accepted": false,
+  "baseline_status": "owner-reviewed baseline and expiring exceptions pending",
+  "exceptions": []
+}

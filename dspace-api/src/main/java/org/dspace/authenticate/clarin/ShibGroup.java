@@ -44,10 +44,10 @@ public class ShibGroup {
     private ShibHeaders shib_headers_ = null;
     private Context context_ = null;
 
-    private static String defaultRoles;
-    private static String roleHeader;
-    private static boolean ignoreScope;
-    private static boolean ignoreValue;
+    private final String defaultRoles;
+    private final String roleHeader;
+    private final boolean ignoreScope;
+    private final boolean ignoreValue;
 
     ConfigurationService configurationService;
     GroupService groupService;
@@ -107,10 +107,9 @@ public class ShibGroup {
                 if (defaultRoles != null) {
                     affiliations = Arrays.asList(defaultRoles.split(","));
                 }
-                log.debug("Failed to find Shibboleth role header, '" + roleHeader + "', " +
-                        "falling back to the default roles: '" + defaultRoles + "'");
+                log.debug("No Shibboleth affiliations supplied; using configured default roles.");
             } else {
-                log.debug("Found Shibboleth role header: '" + roleHeader + "' = '" + affiliations + "'");
+                log.debug("Shibboleth affiliations supplied; values redacted.");
             }
 
             // Loop through each affiliation
@@ -124,12 +123,10 @@ public class ShibGroup {
                     String groupNames = get_group_names_from_affiliation(affiliation);
 
                     if (groupNames == null) {
-                        log.debug("Unable to find role mapping for the value, '" + affiliation + "', " +
-                                "there should be a mapping in the dspace.cfg:  authentication.shib.role."
-                                + affiliation + " = <some group name>");
+                        log.debug("No configured mapping for a Shibboleth affiliation; value redacted.");
                         continue;
                     } else {
-                        log.debug("Mapping role affiliation to DSpace group: '" + groupNames + "'");
+                        log.debug("Applying a configured Shibboleth group mapping.");
                     }
 
                     // get the group ids
@@ -177,12 +174,12 @@ public class ShibGroup {
             }
             /* </UFAL> */
 
-            log.info("Added current EPerson to special groups: " + groups);
+            log.debug("Shibboleth special-group mapping completed.");
             // Convert from a Java Set to primitive ArrayList array
             return new ArrayList<>(groups);
         } catch (Throwable t) {
-            log.error(
-                    "Unable to validate any special groups this user may belong too because of an exception.",t);
+            log.error("Unable to validate Shibboleth special groups ({}); details redacted.",
+                    t.getClass().getSimpleName());
             return new ArrayList<>();
         }
     }
@@ -264,12 +261,10 @@ public class ShibGroup {
                 if (group != null) {
                     groups.add(group.getID());
                 } else {
-                    log.debug("Unable to find group: '" + names[i].trim() + "'");
+                    log.debug("A configured Shibboleth group was not found.");
                 }
             } catch (SQLException sqle) {
-                log.error(
-                    "Exception thrown while trying to lookup affiliation role for group name: '"
-                            + names[i].trim() + "'", sqle);
+                log.error("Unable to look up a configured Shibboleth group; details redacted.");
             }
         } // for each groupNames
         return groups;
@@ -284,11 +279,10 @@ public class ShibGroup {
                 if (group != null) {
                     return group;
                 } else {
-                    log.debug("Unable to find default group: '" + defaultAuthGroup.trim() + "'");
+                    log.debug("The configured default Shibboleth group was not found.");
                 }
             } catch (SQLException sqle) {
-                log.error("Exception thrown while trying to lookup shibboleth " +
-                        "default authentication group with name: '" + defaultAuthGroup.trim() + "'",sqle);
+                log.error("Unable to look up the default Shibboleth group; details redacted.");
             }
         }
 

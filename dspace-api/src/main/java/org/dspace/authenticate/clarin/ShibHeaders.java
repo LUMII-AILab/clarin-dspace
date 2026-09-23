@@ -144,10 +144,7 @@ public class ShibHeaders {
     //
 
     public void log_headers() {
-        for ( Map.Entry<String, List<String>> i : headers_.get().entrySet() ) {
-            log.debug(String.format("header:%s=%s",
-                    i.getKey(), StringUtils.join(i.getValue().toArray(), ",") ));
-        }
+        log.debug("Shibboleth attribute values are redacted.");
     }
 
     private void initializeNetIdHeader() {

@@ -186,8 +186,7 @@ public class Headers {
             // Encode the string to UTF-8
             return new String(value.getBytes(inputEncoding), outputEncoding);
         } catch (UnsupportedEncodingException ex) {
-            log.warn("Cannot convert the value: " + value + " from " + inputEncoding + " to " + outputEncoding +
-                    " because of: " + ex.getMessage());
+            log.warn("Unable to decode an authentication attribute; value redacted.");
             return value;
         }
     }

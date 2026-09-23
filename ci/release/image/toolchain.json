@@ -1,0 +1,14 @@
+{
+  "buildx_version": "v0.37.0",
+  "buildkit_image": "moby/buildkit@sha256:ddd1ca44b21eda906e81ab14a3d467fa6c39cd73b9a39df1196210edcb8db59e",
+  "sbom_generator": "docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9",
+  "skopeo_image": "quay.io/skopeo/stable@sha256:47853bb9fb24202af9110531ebd6e43c5f97701254ca290596640290d17942f4",
+  "trivy_url": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+  "trivy_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
+  "source_repository": "https://github.com/LUMII-AILab/clarin-dspace",
+  "image": "ghcr.io/lumii-ailab/clarin-dspace",
+  "platform": "linux/amd64",
+  "maven_image": "docker.io/library/maven@sha256:ff4cb65a7a145a77392522cf5fff50c54b6d5af68ff1b10ca99782d05c833799",
+  "runtime_image": "docker.io/ufal/dspace@sha256:b542b8b4385e22cffdec3277d0a31acddc37c26682af1f497870c90840464fd2",
+  "language_version": "7.6.2"
+}

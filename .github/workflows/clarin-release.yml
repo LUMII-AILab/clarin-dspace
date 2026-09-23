@@ -1,0 +1,163 @@
+---
+name: CLARIN backend release
+on:
+  pull_request:
+    branches: [clarin-v7]
+  push:
+    branches: [clarin-v7]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the qualified candidate (separate owner authorization required)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: clarin-backend-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  tests:
+    name: Maven ${{ matrix.kind }}
+    # Retain the inherited full unit/integration coverage as separate PR gates.
+    if: github.repository == 'LUMII-AILab/clarin-dspace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      image: docker.io/library/maven@sha256:ff4cb65a7a145a77392522cf5fff50c54b6d5af68ff1b10ca99782d05c833799
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: unit
+            flags: -DskipUnitTests=false -Pdspace-rest
+          - kind: integration
+            flags: -DskipIntegrationTests=false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Full Maven regression suite
+        env:
+          TEST_FLAGS: ${{ matrix.flags }}
+          MAVEN_OPTS: -Xmx1024M
+        shell: bash
+        run: |
+          read -r -a flags <<< "$TEST_FLAGS"
+          mvn --batch-mode --no-transfer-progress install -P-assembly "${flags[@]}"
+      - name: Retain Maven reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-${{ matrix.kind }}-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 30
+  build:
+    name: Backend candidate
+    if: github.repository == 'LUMII-AILab/clarin-dspace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ${{ steps.source.outputs.image }}
+      tag: ${{ steps.source.outputs.tag }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Test release tooling and export clean source
+        id: source
+        run: |
+          python3 -m unittest discover -s ci/release -p 'test_*.py'
+          python3 ci/release/backend_image.py prepare \
+            "$RUNNER_TEMP/backend-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            output/evidence >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          version: ${{ steps.source.outputs.buildx_version }}
+          driver-opts: image=${{ steps.source.outputs.buildkit_image }}
+          buildkitd-flags: ""
+      - name: Build and run authentication tests without registry credentials
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ steps.source.outputs.context }}
+          file: ${{ steps.source.outputs.context }}/ci/release/image/Dockerfile
+          platforms: linux/amd64
+          push: false
+          outputs: type=oci,dest=output/backend.oci.tar
+          tags: ${{ steps.source.outputs.image }}:${{ steps.source.outputs.tag }}
+          cache-from: type=gha,scope=clarin-backend
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=clarin-backend,mode=max' || '' }}
+          provenance: mode=max
+          attests: type=sbom,generator=${{ steps.source.outputs.sbom_generator }}
+          build-args: |
+            MAVEN_IMAGE=${{ steps.source.outputs.maven_image }}
+            RUNTIME_IMAGE=${{ steps.source.outputs.runtime_image }}
+            SOURCE_REVISION=${{ steps.source.outputs.source_revision }}
+            SOURCE_ARCHIVE_SHA256=${{ steps.source.outputs.source_archive_sha256 }}
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.source_date_epoch }}
+      - name: Verify OCI, load exact artifact, qualify and scan
+        env:
+          EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
+          SKOPEO: ${{ steps.source.outputs.skopeo_image }}
+        run: |
+          python3 ci/release/backend_image.py inspect output/backend.oci.tar \
+            "$EXPECTED_DIGEST" output/evidence
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/artifact" \
+            "$SKOPEO" copy --override-os linux --override-arch amd64 \
+            oci-archive:/artifact/backend.oci.tar docker-archive:/artifact/runtime.tar:clarin-backend:test
+          docker load --input output/runtime.tar
+          rm output/runtime.tar
+          python3 ci/release/qualify.py output/evidence
+          bash ci/release/scan.sh output/backend.oci.tar output/evidence
+          python3 ci/release/record.py
+      - name: Retain candidate for publication retry
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-candidate-${{ github.run_id }}
+          path: output/
+          overwrite: true
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+  publish:
+    needs: [build, tests]
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.publish &&
+      github.ref == 'refs/heads/clarin-v7' &&
+      github.repository == 'LUMII-AILab/clarin-dspace' &&
+      vars.CLARIN_BACKEND_PUBLISH_ENABLED == 'true'
+    environment: backend-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: backend-candidate-${{ github.run_id }}
+          path: output
+      - name: Verify retained candidate before publication
+        env:
+          EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
+        run: python3 ci/release/verify_record.py
+      - name: Copy qualified artifact and publish immutable reports
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALLOW_NEW_PACKAGE: ${{ vars.CLARIN_BACKEND_BOOTSTRAP }}
+          GHCR_USER: ${{ github.actor }}
+          EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
+          IMAGE: ${{ needs.build.outputs.image }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          bash ci/release/publish.sh
+          python3 ci/release/publish_report.py

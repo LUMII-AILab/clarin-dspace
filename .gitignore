@@ -58,3 +58,7 @@ rebel.xml
 /scripts/envs/__dspace.parent.basic.bat
 /scripts/TEST_*
 /scripts/tests.yaml
+
+# CLARIN release artifacts (never source/private inputs)
+/output/
+/ci/release/__pycache__/
