@@ -79,27 +79,34 @@ scanning is always required by CI before a publishable release record exists.
 Local output must stay outside the checkout. Synthetic logs/reports stay outside
 the workbook; never add private configuration to source or build inputs.
 
-## Publication activation (later authorized step)
+## Approval after successful CI
 
-Publication is disabled unless **all** gates hold: successful full test matrix and
-candidate qualification; explicit manual dispatch with `publish: true`; branch
-`clarin-v7`; repository `LUMII-AILab/clarin-dspace`; repository variable
-`CLARIN_BACKEND_PUBLISH_ENABLED=true`; and the `backend-release` environment.
-Configure that environment with owner reviewers and a `clarin-v7` branch restriction
-before activation. After real CI validation, review required-check settings for
-`Maven unit`, `Maven integration` and `Backend candidate`; do not leave obsolete
-upstream check names blocking PRs. Pushes and merges build only, even after activation. This differs
-intentionally from frontend automatic mainline publication.
+A push to `clarin-v7` builds and tests once. After the full Maven matrix and
+candidate qualification pass, publication waits for owner approval in the
+`backend-release` environment. In that run, choose **Review deployments**, select
+`backend-release`, then **Approve and deploy**. Despite GitHub's button label, this
+job only publishes the retained image and reports; it does not deploy a server or
+rebuild the image. PRs cannot publish.
+
+The one-time activation switch is `CLARIN_BACKEND_PUBLISH_ENABLED=true` in
+`LUMII-AILab/clarin-dspace`. Keep the environment's owner reviewer and `clarin-v7`
+branch restriction configured before enabling it. The switch can disable
+publication globally; ordinary releases need only the approval above. Optional
+manual dispatch starts a new build/test run with the same approval gate, without
+a separate publish checkbox. Do not use it to publish an already waiting candidate.
+After real CI validation, review required-check settings for `Maven unit`,
+`Maven integration` and `Backend candidate`; do not leave obsolete upstream check
+names blocking PRs. No push, merge or approval deploys a server. Frontend publication
+retains its separately established automatic mainline flow.
 
 Before the first publication, review GHCR organization creation policy, intended
 private visibility, repository linkage and future deployment-reader access for
 `ghcr.io/lumii-ailab/clarin-dspace`. If the package does not exist, explicitly set
-`CLARIN_BACKEND_BOOTSTRAP=true` for the first authorized dispatch only. It allows
+`CLARIN_BACKEND_BOOTSTRAP=true` for the first authorized publication only. It allows
 only an authenticated `NAME_UNKNOWN` response to proceed with package creation;
 denied access or other errors fail. Clear it after creation and verify package
 visibility/linkage/reader access before any deployment. Never change visibility or
-reuse an unrelated package to bypass an access failure. No settings are changed by
-this local implementation. See [GitHub package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+reuse an unrelated package to bypass an access failure. Keep the intended package private and retain the existing repository/reader permissions. See [GitHub package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
 
 The publisher receives no source build task. It revalidates the retained OCI,
 source, run ID and checksummed evidence, then copies **all** manifests with digest

@@ -6,11 +6,6 @@ on:
   push:
     branches: [clarin-v7]
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the qualified candidate (separate owner authorization required)
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
@@ -127,10 +122,11 @@ jobs:
   publish:
     needs: [build, tests]
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.publish &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/clarin-v7' &&
       github.repository == 'LUMII-AILab/clarin-dspace' &&
       vars.CLARIN_BACKEND_PUBLISH_ENABLED == 'true'
+    # Publication waits for owner approval after build and both test jobs pass.
     environment: backend-release
     runs-on: ubuntu-24.04
     timeout-minutes: 20

@@ -139,9 +139,10 @@ class ReleaseTests(unittest.TestCase):
         build, publish = workflows[0].read_text().split('\n  publish:\n')
         for forbidden in ('secrets.', 'packages: write', 'contents: write', 'pull_request_target'):
             self.assertNotIn(forbidden, build)
-        for required in ('needs: [build, tests]', "github.event_name == 'workflow_dispatch'", 'inputs.publish',
+        for required in ('needs: [build, tests]', "(github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
                          'CLARIN_BACKEND_PUBLISH_ENABLED', 'environment: backend-release', 'verify_record.py'):
             self.assertIn(required, publish)
+        self.assertNotIn('inputs.publish', publish)
         self.assertNotIn('build-push-action', publish)
         self.assertIn('qualify.py', build)
         self.assertIn('scan.sh', build)
