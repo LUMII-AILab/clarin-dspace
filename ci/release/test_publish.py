@@ -15,6 +15,16 @@ class PublishTests(unittest.TestCase):
         harness = r"""
 python3() { printf 'inspect\n' >> "$TRACE"; }
 docker() {
+  local arg scratch=""
+  for arg in "$@"; do
+    if [ "$arg" = --tmpfs ]; then return 42; fi
+    if [[ "$arg" = *:/tmp ]]; then scratch="${arg%:/tmp}"; fi
+  done
+  test -d "$scratch" || return 43
+  test "${scratch%/tmp}" != "$scratch" || return 44
+  test "$(stat -c %a "$scratch")" = 700 || return 45
+  printf 'scratch:%s\n' "$scratch" >> "$TRACE"
+  printf fixture > "$scratch/unpacked-fixture"
   case " $* " in
     *" login "*) cat >/dev/null ;;
     *" list-tags "*)
@@ -34,10 +44,10 @@ bash "$PUBLISHER"
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);(root/'output/evidence').mkdir(parents=True)
             (root/'output/evidence/inputs.json').write_text(json.dumps(m.toolchain()))
-            # output was created above
+            runner_temp=root/'runner temp';runner_temp.mkdir()
             for case, code, copies in [('new',0,1),('same',0,0),('moved',1,0),('denied',1,0),('malformed',None,0),('absent',1,0),('absent-bootstrap',0,1)]:
                 trace=root/'trace';trace.write_text('')
-                env=dict(os.environ,CASE=case,TRACE=str(trace),PUBLISHER=str(ROOT/'ci/release/publish.sh'),
+                env=dict(os.environ,RUNNER_TEMP=str(runner_temp),CASE=case,TRACE=str(trace),PUBLISHER=str(ROOT/'ci/release/publish.sh'),
                          GHCR_TOKEN='private-test-sentinel',GHCR_USER='fixture',
                          ALLOW_NEW_PACKAGE='true' if case == 'absent-bootstrap' else 'false',
                          EXPECTED_DIGEST='sha256:'+hashlib.sha256(b'index').hexdigest(),
@@ -49,6 +59,11 @@ bash "$PUBLISHER"
                     self.assertEqual(result.returncode,code,result.stderr)
                 self.assertEqual(trace.read_text().splitlines().count('copy'),copies)
                 self.assertIn('inspect',trace.read_text())
+                scratch_paths=[Path(line.removeprefix('scratch:')) for line in trace.read_text().splitlines()
+                               if line.startswith('scratch:')]
+                self.assertTrue(scratch_paths)
+                self.assertTrue(all(path.is_relative_to(runner_temp) for path in scratch_paths))
+                self.assertEqual(list(runner_temp.iterdir()), [])  # Clean success and failure alike.
                 self.assertNotIn('private-test-sentinel',result.stdout+result.stderr+trace.read_text())
 
     def test_partial_report_upload_resumes_draft_without_overwriting_assets(self):

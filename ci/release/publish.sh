@@ -8,9 +8,10 @@ test "$IMAGE" = ghcr.io/lumii-ailab/clarin-dspace
 python3 ci/release/backend_image.py inspect output/backend.oci.tar \
     "$EXPECTED_DIGEST" output/evidence
 skopeo_image=$(jq -er .skopeo_image output/evidence/inputs.json)
-auth_dir=$(mktemp -d)
-trap 'rm -rf -- "$auth_dir"' EXIT
-chmod 700 "$auth_dir"
+work_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/clarin-backend-publish.XXXXXX")
+trap 'rm -rf -- "$work_dir"' EXIT
+mkdir -m 700 "$work_dir/auth" "$work_dir/tmp"
+# OCI archives are unpacked into scratch storage. Use runner disk, not memory-limited tmpfs.
 # This helper never mounts the Docker socket or target configuration.
 skopeo() {
     local -a stdin_flags=()
@@ -18,8 +19,8 @@ skopeo() {
         stdin_flags=(-i)
     fi
     docker run "${stdin_flags[@]}" --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
-        --user "$(id -u):$(id -g)" --memory 512m --pids-limit 128 --tmpfs /tmp \
-        -v "$auth_dir:/auth" -v "$PWD/output:/artifact:ro" \
+        --user "$(id -u):$(id -g)" --memory 512m --pids-limit 128 \
+        -v "$work_dir/auth:/auth" -v "$work_dir/tmp:/tmp" -v "$PWD/output:/artifact:ro" \
         "$skopeo_image" --tmpdir /tmp "$@"
 }
 printf '%s' "$GHCR_TOKEN" | skopeo login --authfile /auth/auth.json \
@@ -27,11 +28,11 @@ printf '%s' "$GHCR_TOKEN" | skopeo login --authfile /auth/auth.json \
 unset GHCR_TOKEN
 # A retry may finish an interrupted publication but must never move a release tag.
 # Listing first distinguishes a missing tag from denied access/network errors.
-if ! tags=$(skopeo list-tags --authfile /auth/auth.json "docker://$IMAGE" 2>"$auth_dir/list-error"); then
+if ! tags=$(skopeo list-tags --authfile /auth/auth.json "docker://$IMAGE" 2>"$work_dir/list-error"); then
     # First package creation is separately enabled after owner review. Never
     # interpret permission, network or arbitrary registry errors as an absent tag.
     test "${ALLOW_NEW_PACKAGE:-false}" = true
-    grep -Eiq 'name unknown|NAME_UNKNOWN' "$auth_dir/list-error"
+    grep -Eiq 'name unknown|NAME_UNKNOWN' "$work_dir/list-error"
     tags='{"Tags":[]}'
 fi
 # A malformed success response is not proof that a tag is absent.

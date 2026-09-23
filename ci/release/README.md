@@ -114,6 +114,10 @@ preservation to `sha-FULL_COMMIT`. Existing different tags are rejected. Reports
 are uploaded through a resumable draft GitHub release; existing different report
 assets are rejected. The final registry digest must match the candidate exactly.
 Publication is repository/workflow trust, not an image-signature scheme.
+The publisher unpacks OCI archives into a private temporary directory on runner
+disk (`RUNNER_TEMP`, falling back to `TMPDIR` or `/tmp` outside CI). Authentication
+and scratch files are removed on exit. Scratch must not use a container tmpfs:
+the backend archive exceeds the copier's 512 MiB memory limit.
 
 On interruption, use **Re-run failed jobs**, retaining the successful candidate
 artifact (30 days). Do not rerun a successful build just to retry the publisher.
