@@ -17,11 +17,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.http.Cookie;
 
 import com.nimbusds.jwt.JWTParser;
 import org.dspace.app.rest.test.AbstractControllerIntegrationTest;
 import org.dspace.app.util.Util;
+import org.dspace.authenticate.clarin.ClarinShibAuthentication;
+import org.dspace.authorize.factory.AuthorizeServiceFactory;
 import org.dspace.builder.BitstreamBuilder;
 import org.dspace.builder.CollectionBuilder;
 import org.dspace.builder.CommunityBuilder;
@@ -31,6 +40,9 @@ import org.dspace.builder.ItemBuilder;
 import org.dspace.content.Bitstream;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
+import org.dspace.content.clarin.ClarinUserRegistration;
+import org.dspace.content.factory.ClarinServiceFactory;
+import org.dspace.core.Context;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.eperson.factory.EPersonServiceFactory;
@@ -58,6 +70,9 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
                 "org.dspace.authenticate.PasswordAuthentication"});
         configurationService.setProperty("authentication-shibboleth.netid-header", "eppn,persistent-id");
         configurationService.setProperty("authentication-shibboleth.autoregister", true);
+        configurationService.setProperty("authentication-shibboleth.email-header", "mail");
+        configurationService.setProperty("authentication-shibboleth.firstname-header", "givenName");
+        configurationService.setProperty("authentication-shibboleth.lastname-header", "sn");
         configurationService.setProperty("authentication-shibboleth.lazysession.loginurl",
                 "https://repository.auth.test/Shibboleth.sso/Login");
         configurationService.setProperty("dspace.ui.url", "https://repository.auth.test/repository");
@@ -68,6 +83,7 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
         preservedGroup = GroupBuilder.createGroup(context).withName("Preserved institutional permission")
                 .addMember(institutional).build();
         context.restoreAuthSystemState();
+        context.commit();
     }
 
     private MockHttpServletRequestBuilder login(String identifier, String email) {
@@ -101,9 +117,10 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
     }
 
     @Test
-    public void emailOnlyAndUnknownMatchesCannotCreateOrLink() throws Exception {
+    public void emailCollisionsCannotCreateOrLink() throws Exception {
         int count = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        for (String email : new String[] {eperson.getEmail(), institutional.getEmail(), "new@auth.test"}) {
+        for (String email : new String[] {eperson.getEmail(), institutional.getEmail(),
+                eperson.getEmail().toUpperCase(java.util.Locale.ROOT)}) {
             MockHttpServletResponse response = getClient().perform(login("unmatched", email))
                     .andExpect(status().isFound()).andExpect(redirectedUrl(
                             "https://repository.auth.test/repository/login?error=shibboleth-account-review-required"))
@@ -113,6 +130,164 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
         assertEquals(count, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
         assertNull(eperson.getNetid());
         assertEquals(Util.formatNetId("known", IDP), institutional.getNetid());
+    }
+
+    @Test
+    public void firstLoginCreatesOrdinaryAccountAndRegistrationThenReusesIt() throws Exception {
+        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
+        UUID id = null;
+        for (int i = 0; i < 2; i++) {
+            MockHttpServletResponse response = getClient().perform(login("new-user", "New.User@auth.test")
+                    .header("givenName", "New").header("sn", "User"))
+                    .andExpect(status().isFound()).andExpect(redirectedUrl(
+                            "https://repository.auth.test/repository")).andReturn().getResponse();
+            Cookie cookie = response.getCookie(AUTHORIZATION_COOKIE);
+            assertNotNull(cookie);
+            UUID actual = UUID.fromString(JWTParser.parse(cookie.getValue().replace("Bearer ", ""))
+                    .getJWTClaimsSet().getStringClaim("eid"));
+            if (id != null) {
+                assertEquals(id, actual);
+            }
+            id = actual;
+        }
+        try (Context check = new Context()) {
+            check.turnOffAuthorisationSystem();
+            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
+            assertEquals("new.user@auth.test", created.getEmail());
+            assertEquals(Util.formatNetId("new-user", IDP), created.getNetid());
+            assertEquals("New", created.getFirstName());
+            assertEquals("User", created.getLastName());
+            assertTrue(!created.canLogIn());
+            assertTrue(!created.hasPasswordSet());
+            check.restoreAuthSystemState();
+            assertTrue(!AuthorizeServiceFactory.getInstance().getAuthorizeService().isAdmin(check, created));
+            assertTrue(!EPersonServiceFactory.getInstance().getGroupService().isMember(check, created, preservedGroup));
+            check.turnOffAuthorisationSystem();
+            List<ClarinUserRegistration> registrations = ClarinServiceFactory.getInstance()
+                    .getClarinUserRegistration().findByEPersonUUID(check, id);
+            assertEquals(1, registrations.size());
+            assertEquals(created.getEmail(), registrations.get(0).getEmail());
+            assertTrue(registrations.get(0).isConfirmation());
+            assertEquals(before + 1, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
+        }
+    }
+
+    @Test
+    public void incompleteOrAmbiguousNewIdentityCannotCreateAccount() throws Exception {
+        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
+        for (MockHttpServletRequestBuilder request : new MockHttpServletRequestBuilder[] {
+            get(CALLBACK).header("eppn", "invalid-new-user").header("mail", "new@auth.test"),
+            login("invalid-new-user", "not-an-email"),
+            login("invalid-new-user", "new@auth.test").header("eppn", "other-user"),
+            login("invalid-new-user", "new@auth.test").header("mail", "other@auth.test"),
+            get(CALLBACK).header("Shib-Identity-Provider", IDP).header("eppn", "invalid-new-user")}) {
+            MockHttpServletResponse response = getClient().perform(request).andExpect(status().isFound())
+                    .andExpect(redirectedUrl("https://repository.auth.test/repository/login"
+                            + "?error=shibboleth-attributes-invalid")).andReturn().getResponse();
+            assertNull(response.getCookie(AUTHORIZATION_COOKIE));
+        }
+        assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
+    }
+
+    private static class Provisioner extends ClarinShibAuthentication {
+        void failRegistration() throws Exception {
+            clarinUserRegistrationService = org.mockito.Mockito.mock(
+                    org.dspace.content.service.clarin.ClarinUserRegistrationService.class);
+            org.mockito.Mockito.when(clarinUserRegistrationService.create(
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                    .thenThrow(new java.sql.SQLException("Synthetic registration failure"));
+        }
+
+        UUID create(String identifier, String email) throws Exception {
+            try (Context registration = new Context()) {
+                return provision(registration, List.of(Util.formatNetId(identifier, IDP)), email, "Concurrent", "User");
+            }
+        }
+    }
+
+    @Test
+    public void concurrentFirstLoginsProduceOneAccountAndRegistration() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<UUID> first = pool.submit(() -> {
+                start.await();
+                return new Provisioner().create("concurrent", "concurrent@auth.test");
+            });
+            Future<UUID> second = pool.submit(() -> {
+                start.await();
+                return new Provisioner().create("concurrent", "concurrent@auth.test");
+            });
+            start.countDown();
+            UUID id = first.get(30, TimeUnit.SECONDS);
+            assertEquals(id, second.get(30, TimeUnit.SECONDS));
+            try (Context check = new Context()) {
+                check.turnOffAuthorisationSystem();
+                assertEquals(1, ClarinServiceFactory.getInstance().getClarinUserRegistration()
+                        .findByEPersonUUID(check, id).size());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void failedClarinRegistrationRollsBackTheEntireAccount() throws Exception {
+        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
+        Provisioner provider = new Provisioner();
+        provider.failRegistration();
+        try {
+            provider.create("failed-registration", "failed@auth.test");
+            org.junit.Assert.fail("Registration failure must abort provisioning");
+        } catch (java.sql.SQLException expected) {
+            try (Context check = new Context()) {
+                assertNull(EPersonServiceFactory.getInstance().getEPersonService()
+                        .findByNetid(check, Util.formatNetId("failed-registration", IDP)));
+                assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
+            }
+        }
+    }
+
+    @Test
+    public void concurrentDifferentIdentitiesWithSameEmailDoNotLink() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<UUID> first = pool.submit(() -> {
+                start.await();
+                return new Provisioner().create("first", "collision@auth.test");
+            });
+            Future<UUID> second = pool.submit(() -> {
+                start.await();
+                return new Provisioner().create("second", "collision@auth.test");
+            });
+            start.countDown();
+            UUID one = first.get(30, TimeUnit.SECONDS);
+            UUID two = second.get(30, TimeUnit.SECONDS);
+            assertTrue((one == null) != (two == null));
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void explicitAssistedBindingReusesLocalAccountAndKeepsPassword() throws Exception {
+        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
+        UUID id = eperson.getID();
+        // Equivalent to the supported privileged user --modify --newNetid service path.
+        // Ownership proof and consent are operator prerequisites, never inferred from the email.
+        context.turnOffAuthorisationSystem();
+        eperson = context.reloadEntity(eperson);
+        eperson.setNetid(Util.formatNetId("recovered", IDP));
+        EPersonServiceFactory.getInstance().getEPersonService().update(context, eperson);
+        context.commit();
+        context.restoreAuthSystemState();
+        MockHttpServletResponse response = getClient().perform(login("recovered", eperson.getEmail()))
+                .andExpect(status().isFound()).andReturn().getResponse();
+        String value = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
+        assertEquals(id.toString(), JWTParser.parse(value).getJWTClaimsSet().getStringClaim("eid"));
+        assertNotNull(getAuthToken(eperson.getEmail(), password));
+        assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
     }
 
     @Test

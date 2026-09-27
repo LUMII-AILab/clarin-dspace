@@ -97,9 +97,15 @@ public class ClarinShibbolethLoginFilter extends StatelessLoginFilter {
             return;
         }
         res.setHeader("WWW-Authenticate", restAuthenticationService.getWwwAuthenticateHeaderValue(req, res));
-        // Identical response for unknown identities and email collisions; no personal data in URLs or logs.
+        // Only a valid but unlinked identity reaches recovery. No personal data goes into URLs.
+        String error = "shibboleth-authentication-failed";
+        if (Boolean.TRUE.equals(req.getAttribute(ClarinShibAuthentication.ACCOUNT_REVIEW_REQUIRED))) {
+            error = "shibboleth-account-review-required";
+        } else if (Boolean.TRUE.equals(req.getAttribute(ClarinShibAuthentication.INVALID_ATTRIBUTES))) {
+            error = "shibboleth-attributes-invalid";
+        }
         res.sendRedirect(configurationService.getProperty("dspace.ui.url")
-                + "/login?error=shibboleth-account-review-required");
+                + "/login?error=" + error);
     }
 
     /** Require the configured UI scheme, host, effective port and path boundary. */

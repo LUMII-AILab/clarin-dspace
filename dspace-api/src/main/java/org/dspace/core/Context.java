@@ -427,6 +427,19 @@ public class Context implements AutoCloseable {
     }
 
     /**
+     * Flush pending writes without committing or dispatching events. Callers can use this
+     * to detect constraint failures before event consumers run, and roll back on failure.
+     *
+     * @throws SQLException if the database cannot flush pending writes
+     */
+    public void flush() throws SQLException {
+        if (!isValid() || isReadOnly()) {
+            throw new IllegalStateException("Flushing requires an open writable context");
+        }
+        dbConnection.flushSession();
+    }
+
+    /**
      * Commit the current transaction with the database, persisting any pending changes.
      * The database connection is not closed and can be reused afterwards.
      *
