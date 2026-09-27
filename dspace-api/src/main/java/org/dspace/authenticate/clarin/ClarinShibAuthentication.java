@@ -23,6 +23,7 @@ import javax.mail.internet.InternetAddress;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -65,19 +66,21 @@ public class ClarinShibAuthentication extends ShibAuthentication {
         ShibHeaders headers = new ShibHeaders(request);
         try {
             List<String> identifiers = qualifiedIdentifiers(headers.getNetIdHeaders(), headers);
+            // An email fallback is a distinct issuer-bound identity, never a lookup by email.
+            // NetID assertions remain authoritative; malformed/multivalued IDs never fall back.
+            if (identifiers.isEmpty()) {
+                single(headers, "Shib-Session-ID", true);
+                identifiers.add(emailIdentity(single(headers, "Shib-Identity-Provider", true), email(headers, true)));
+            }
             EPerson person = resolve(identifiers, ePersonService, context);
             if (person == null) {
                 if (!configurationService.getBooleanProperty("authentication-shibboleth.autoregister", true)) {
                     request.setAttribute(ACCOUNT_REVIEW_REQUIRED, true);
                     return NO_SUCH_USER;
                 }
-                // A new registration requires a trusted SP session and one usable email.
+                // NetID-only users may sign in; email-dependent registration waits for email.
                 single(headers, "Shib-Session-ID", true);
-                String email = single(headers, configurationService.getProperty(
-                        "authentication-shibboleth.email-header", "mail"), true).toLowerCase(Locale.ROOT);
-                if (email.length() > 256 || !validEmail(email)) {
-                    throw new IllegalArgumentException("Invalid federation attributes");
-                }
+                String email = email(headers, false);
                 String first = single(headers, configurationService.getProperty(
                         "authentication-shibboleth.firstname-header", "givenName"), false);
                 String last = single(headers, configurationService.getProperty(
@@ -121,10 +124,27 @@ public class ClarinShibAuthentication extends ShibAuthentication {
                 }
             }
         }
-        if (identifiers.isEmpty()) {
-            throw new IllegalArgumentException("Missing federation identity");
-        }
         return identifiers;
+    }
+
+    /** Deterministic, disjoint from legacy identifier[issuer] NetIDs, and within the DB limit. */
+    public static String emailIdentity(String issuer, String email) {
+        // NUL cannot occur in validated headers. Hash both fields to avoid ambiguous concatenation.
+        return "urn:clarin:federation-email:v1:" + DigestUtils.sha256Hex(
+                issuer + "\0" + email.toLowerCase(Locale.ROOT));
+    }
+
+    private String email(ShibHeaders headers, boolean required) {
+        String value = single(headers, configurationService.getProperty(
+                "authentication-shibboleth.email-header", "mail"), required);
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.toLowerCase(Locale.ROOT);
+        if (normalized.length() > 256 || !validEmail(normalized)) {
+            throw new IllegalArgumentException("Invalid federation attributes");
+        }
+        return normalized;
     }
 
     private static boolean validEmail(String email) {
@@ -178,7 +198,7 @@ public class ClarinShibAuthentication extends ShibAuthentication {
     /**
      * Commit EPerson and CLARIN registration together in the callback transaction. Existing
      * database unique constraints arbitrate races across backend processes. A losing insert
-     * is rolled back, then resolved in a fresh transaction; email alone never authenticates.
+     * is rolled back, then resolved in a fresh transaction; unrelated email matches never authenticate.
      */
     protected UUID provision(Context registration, List<String> identifiers, String email, String first, String last)
             throws SQLException {
@@ -188,7 +208,7 @@ public class ClarinShibAuthentication extends ShibAuthentication {
                 if (existing != null) {
                     return existing.getID();
                 }
-                if (ePersonService.findByEmail(registration, email) != null) {
+                if (email != null && ePersonService.findByEmail(registration, email) != null) {
                     return null;
                 }
                 registration.turnOffAuthorisationSystem();
@@ -205,12 +225,14 @@ public class ClarinShibAuthentication extends ShibAuthentication {
                         person.setLastName(registration, StringUtils.left(last, NAME_MAX_SIZE));
                     }
                     ePersonService.update(registration, person);
-                    ClarinUserRegistration record = new ClarinUserRegistration();
-                    record.setPersonID(person.getID());
-                    record.setEmail(email);
-                    record.setOrganization(identifiers.get(0));
-                    record.setConfirmation(true);
-                    clarinUserRegistrationService.create(registration, record);
+                    if (email != null) {
+                        ClarinUserRegistration record = new ClarinUserRegistration();
+                        record.setPersonID(person.getID());
+                        record.setEmail(email);
+                        record.setOrganization(identifiers.get(0));
+                        record.setConfirmation(true);
+                        clarinUserRegistrationService.create(registration, record);
+                    }
                     UUID id = person.getID();
                     // Flush here: event consumers may otherwise catch a constraint error
                     // and leave commit() returning after a rollback-only transaction.

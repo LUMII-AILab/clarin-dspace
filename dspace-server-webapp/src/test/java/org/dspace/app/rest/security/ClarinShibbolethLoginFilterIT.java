@@ -12,6 +12,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -93,10 +95,17 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
         // does not own them. Remove their registrations before deleting the accounts.
         try (Context cleanup = new Context()) {
             cleanup.turnOffAuthorisationSystem();
+            java.util.ArrayList<String> identifiers = new java.util.ArrayList<>();
             for (String identifier : new String[] {
-                "new-user", "concurrent", "first", "second", "failed-registration", "invalid-new-user"}) {
+                "new-user", "concurrent", "first", "second", "failed-registration", "invalid-new-user", "netid-only"}) {
+                identifiers.add(Util.formatNetId(identifier, IDP));
+            }
+            for (String email : new String[] {"email.only@auth.test", "concurrent.email@auth.test"}) {
+                identifiers.add(ClarinShibAuthentication.emailIdentity(IDP, email));
+            }
+            for (String identifier : identifiers) {
                 EPerson created = EPersonServiceFactory.getInstance().getEPersonService()
-                        .findByNetid(cleanup, Util.formatNetId(identifier, IDP));
+                        .findByNetid(cleanup, identifier);
                 if (created != null) {
                     for (ClarinUserRegistration record : ClarinServiceFactory.getInstance()
                             .getClarinUserRegistration().findByEPersonUUID(cleanup, created.getID())) {
@@ -110,8 +119,15 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
     }
 
     private MockHttpServletRequestBuilder login(String identifier, String email) {
-        return get(CALLBACK).header("Shib-Identity-Provider", IDP).header("Shib-Session-ID", "synthetic-session")
-                .header("eppn", identifier).header("mail", email);
+        MockHttpServletRequestBuilder request = get(CALLBACK).header("Shib-Identity-Provider", IDP)
+                .header("Shib-Session-ID", "synthetic-session");
+        if (identifier != null) {
+            request.header("eppn", identifier);
+        }
+        if (email != null) {
+            request.header("mail", email);
+        }
+        return request;
     }
 
     @Test
@@ -196,11 +212,83 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
     }
 
     @Test
+    public void emailOnlyCreatesAndReusesOnlyTheSameIssuerBinding() throws Exception {
+        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
+        UUID id = null;
+        for (String email : new String[] {"Email.Only@auth.test", "email.only@auth.test"}) {
+            MockHttpServletResponse response = getClient().perform(login(null, email))
+                    .andExpect(status().isFound()).andExpect(redirectedUrl(
+                            "https://repository.auth.test/repository")).andReturn().getResponse();
+            UUID actual = UUID.fromString(JWTParser.parse(response.getCookie(AUTHORIZATION_COOKIE)
+                    .getValue().replace("Bearer ", "")).getJWTClaimsSet().getStringClaim("eid"));
+            if (id != null) {
+                assertEquals(id, actual);
+            }
+            id = actual;
+        }
+        try (Context check = new Context()) {
+            check.turnOffAuthorisationSystem();
+            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
+            assertEquals(ClarinShibAuthentication.emailIdentity(IDP, "email.only@auth.test"), created.getNetid());
+            assertEquals("email.only@auth.test", created.getEmail());
+            assertTrue(!created.canLogIn());
+            assertTrue(!created.hasPasswordSet());
+            List<ClarinUserRegistration> records = ClarinServiceFactory.getInstance()
+                    .getClarinUserRegistration().findByEPersonUUID(check, id);
+            assertEquals(1, records.size());
+            assertTrue(records.get(0).isConfirmation());
+            assertEquals(before + 1, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
+        }
+        // A different issuer, existing native/federated account, or new NetID cannot silently claim it.
+        for (MockHttpServletRequestBuilder request : new MockHttpServletRequestBuilder[] {
+            get(CALLBACK).header("Shib-Identity-Provider", "https://other.auth.test/idp")
+                .header("Shib-Session-ID", "session").header("mail", "email.only@auth.test"),
+            login(null, eperson.getEmail()), login(null, institutional.getEmail()),
+            login("new-binding", "email.only@auth.test")}) {
+            MockHttpServletResponse response = getClient().perform(request)
+                    .andExpect(status().isFound()).andExpect(redirectedUrl(
+                            "https://repository.auth.test/repository/login?error=shibboleth-account-review-required"))
+                    .andReturn().getResponse();
+            assertNull(response.getCookie(AUTHORIZATION_COOKIE));
+        }
+    }
+
+    @Test
+    public void netidOnlyCreatesAndReusesAccountAndSupportsJwtRefresh() throws Exception {
+        UUID id = null;
+        for (int i = 0; i < 2; i++) {
+            MockHttpServletResponse response = getClient().perform(login("netid-only", null))
+                    .andExpect(status().isFound()).andExpect(redirectedUrl(
+                            "https://repository.auth.test/repository")).andReturn().getResponse();
+            String token = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
+            UUID actual = UUID.fromString(JWTParser.parse(token).getJWTClaimsSet().getStringClaim("eid"));
+            if (id != null) {
+                assertEquals(id, actual);
+            }
+            id = actual;
+            getClient(token).perform(get("/api/authn/status")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.authenticated").value(true));
+            getClient(token).perform(post("/api/authn/login")).andExpect(status().isOk());
+        }
+        try (Context check = new Context()) {
+            check.turnOffAuthorisationSystem();
+            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
+            assertNull(created.getEmail());
+            assertEquals(Util.formatNetId("netid-only", IDP), created.getNetid());
+            assertTrue(!created.canLogIn());
+            assertTrue(!created.hasPasswordSet());
+            assertEquals(0, ClarinServiceFactory.getInstance().getClarinUserRegistration()
+                    .findByEPersonUUID(check, id).size());
+        }
+    }
+
+    @Test
     public void incompleteOrAmbiguousNewIdentityCannotCreateAccount() throws Exception {
         int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
         for (MockHttpServletRequestBuilder request : new MockHttpServletRequestBuilder[] {
             get(CALLBACK).header("eppn", "invalid-new-user").header("mail", "new@auth.test"),
-            login("invalid-new-user", "not-an-email"),
+            login("invalid-new-user", "not-an-email"), login(null, null), login(null, "not-an-email"),
+            login(null, "new@auth.test").header("mail", "another@auth.test"),
             login("invalid-new-user", "new@auth.test").header("eppn", "other-user"),
             login("invalid-new-user", "new@auth.test").header("mail", "other@auth.test"),
             get(CALLBACK).header("Shib-Identity-Provider", IDP).header("eppn", "invalid-new-user")}) {
@@ -223,7 +311,9 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
 
         UUID create(String identifier, String email) throws Exception {
             try (Context registration = new Context()) {
-                return provision(registration, List.of(Util.formatNetId(identifier, IDP)), email, "Concurrent", "User");
+                String key = identifier == null ? ClarinShibAuthentication.emailIdentity(IDP, email)
+                        : Util.formatNetId(identifier, IDP);
+                return provision(registration, List.of(key), email, "Concurrent", "User");
             }
         }
     }
@@ -251,6 +341,27 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
             }
         } finally {
             pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void concurrentEmailOnlyAndNetidOnlyLoginsRemainUnique() throws Exception {
+        for (String identifier : new String[] {null, "netid-only"}) {
+            String email = identifier == null ? "concurrent.email@auth.test" : null;
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch start = new CountDownLatch(1);
+            try {
+                java.util.concurrent.Callable<UUID> create = () -> {
+                    start.await();
+                    return new Provisioner().create(identifier, email);
+                };
+                Future<UUID> one = pool.submit(create);
+                Future<UUID> two = pool.submit(create);
+                start.countDown();
+                assertEquals(one.get(30, TimeUnit.SECONDS), two.get(30, TimeUnit.SECONDS));
+            } finally {
+                pool.shutdownNow();
+            }
         }
     }
 

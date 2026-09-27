@@ -41,8 +41,6 @@ public class ClarinExistingAccountTest extends AbstractDSpaceTest {
         @Override
         protected UUID provision(Context context, List<String> identifiers, String email, String first, String last) {
             provisioningCalls++;
-            assertEquals("new[https://idp.auth.test/idp]", identifiers.get(0));
-            assertEquals("same@auth.test", email);
             return created;
         }
         TestProvider(EPersonService people) {
@@ -144,18 +142,55 @@ public class ClarinExistingAccountTest extends AbstractDSpaceTest {
     public void malformedAttributesNeverProvision() throws Exception {
         DSpaceServicesFactory.getInstance().getConfigurationService()
                 .setProperty("authentication-shibboleth.autoregister", true);
-        for (String header : new String[] {"Shib-Identity-Provider", "eppn", "Shib-Session-ID", "mail"}) {
+        for (String header : new String[] {"Shib-Identity-Provider", "Shib-Session-ID"}) {
             MockHttpServletRequest missing = request("new");
             missing.removeHeader(header);
             assertEquals(AuthenticationMethod.NO_SUCH_USER,
                     provider.authenticate(mock(Context.class), null, null, null, missing));
             assertEquals(true, missing.getAttribute(ClarinShibAuthentication.INVALID_ATTRIBUTES));
+        }
+        for (String header : new String[] {"Shib-Identity-Provider", "eppn", "Shib-Session-ID", "mail"}) {
             MockHttpServletRequest ambiguous = request("new");
             ambiguous.addHeader(header, "another-value");
             assertEquals(AuthenticationMethod.NO_SUCH_USER,
                     provider.authenticate(mock(Context.class), null, null, null, ambiguous));
         }
         assertEquals(0, provider.provisioningCalls);
+    }
+
+    @Test
+    public void emailFallbackIsIssuerBoundAndNeverLooksUpByEmail() throws Exception {
+        Context context = mock(Context.class);
+        String key = ClarinShibAuthentication.emailIdentity("https://idp.auth.test/idp", "same@auth.test");
+        assertEquals(key, ClarinShibAuthentication.emailIdentity("https://idp.auth.test/idp", "SAME@auth.test"));
+        org.junit.Assert.assertNotEquals(key,
+                ClarinShibAuthentication.emailIdentity("https://other.auth.test/idp", "same@auth.test"));
+        org.junit.Assert.assertFalse(key.contains("["));
+        when(people.findByNetid(context, key)).thenReturn(alice);
+        MockHttpServletRequest request = request("ignored");
+        request.removeHeader("eppn");
+        assertEquals(AuthenticationMethod.SUCCESS, provider.authenticate(context, null, null, null, request));
+        verify(context).setCurrentUser(alice);
+        verify(people, never()).findByEmail(any(), anyString());
+        request.removeHeader("mail");
+        assertEquals(AuthenticationMethod.NO_SUCH_USER, provider.authenticate(context, null, null, null, request));
+        assertEquals(true, request.getAttribute(ClarinShibAuthentication.INVALID_ATTRIBUTES));
+    }
+
+    @Test
+    public void newEmailOnlyAndNetidOnlyIdentitiesCanProvision() throws Exception {
+        DSpaceServicesFactory.getInstance().getConfigurationService()
+                .setProperty("authentication-shibboleth.autoregister", true);
+        provider.created = UUID.randomUUID();
+        for (String absent : new String[] {"eppn", "mail"}) {
+            Context context = mock(Context.class);
+            when(people.find(context, provider.created)).thenReturn(alice);
+            MockHttpServletRequest request = request("new");
+            request.removeHeader(absent);
+            assertEquals(AuthenticationMethod.SUCCESS, provider.authenticate(context, null, null, null, request));
+            verify(context).setCurrentUser(alice);
+        }
+        assertEquals(2, provider.provisioningCalls);
     }
 
     @Test

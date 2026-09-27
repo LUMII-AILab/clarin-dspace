@@ -85,7 +85,7 @@ public class JWTTokenRestAuthenticationServiceImpl implements RestAuthentication
             DSpaceAuthentication authentication, boolean addCookie) throws IOException {
         try {
             Context context = ContextUtil.obtainContext(request);
-            context.setCurrentUser(ePersonService.findByEmail(context, authentication.getName()));
+            context.setCurrentUser(ePersonService.find(context, authentication.getEPersonId()));
 
             String token = loginJWTTokenHandler.createTokenForEPerson(context, request,
                                                                  authentication.getPreviousLoginDate());
