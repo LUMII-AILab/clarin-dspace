@@ -47,6 +47,7 @@ import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.eperson.factory.EPersonServiceFactory;
 import org.dspace.services.ConfigurationService;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,6 +85,28 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
                 .addMember(institutional).build();
         context.restoreAuthSystemState();
         context.commit();
+    }
+
+    @After
+    public void removeProvisionedAccounts() throws Exception {
+        // These accounts are created by the real login service, so AbstractBuilder
+        // does not own them. Remove their registrations before deleting the accounts.
+        try (Context cleanup = new Context()) {
+            cleanup.turnOffAuthorisationSystem();
+            for (String identifier : new String[] {
+                "new-user", "concurrent", "first", "second", "failed-registration", "invalid-new-user"}) {
+                EPerson created = EPersonServiceFactory.getInstance().getEPersonService()
+                        .findByNetid(cleanup, Util.formatNetId(identifier, IDP));
+                if (created != null) {
+                    for (ClarinUserRegistration record : ClarinServiceFactory.getInstance()
+                            .getClarinUserRegistration().findByEPersonUUID(cleanup, created.getID())) {
+                        ClarinServiceFactory.getInstance().getClarinUserRegistration().delete(cleanup, record);
+                    }
+                    EPersonServiceFactory.getInstance().getEPersonService().delete(cleanup, created);
+                }
+            }
+            cleanup.complete();
+        }
     }
 
     private MockHttpServletRequestBuilder login(String identifier, String email) {
@@ -272,21 +295,24 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
 
     @Test
     public void explicitAssistedBindingReusesLocalAccountAndKeepsPassword() throws Exception {
+        // Keep the suite-wide eperson fixture unchanged; the builder owns this local account.
+        context.turnOffAuthorisationSystem();
+        EPerson local = EPersonBuilder.createEPerson(context).withEmail("recovery@auth.test")
+                .withNameInMetadata("Recovery", "Account").withCanLogin(true).withPassword(password).build();
         int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        UUID id = eperson.getID();
+        UUID id = local.getID();
+        String email = local.getEmail();
         // Equivalent to the supported privileged user --modify --newNetid service path.
         // Ownership proof and consent are operator prerequisites, never inferred from the email.
-        context.turnOffAuthorisationSystem();
-        eperson = context.reloadEntity(eperson);
-        eperson.setNetid(Util.formatNetId("recovered", IDP));
-        EPersonServiceFactory.getInstance().getEPersonService().update(context, eperson);
+        local.setNetid(Util.formatNetId("recovered", IDP));
+        EPersonServiceFactory.getInstance().getEPersonService().update(context, local);
         context.commit();
         context.restoreAuthSystemState();
-        MockHttpServletResponse response = getClient().perform(login("recovered", eperson.getEmail()))
+        MockHttpServletResponse response = getClient().perform(login("recovered", email))
                 .andExpect(status().isFound()).andReturn().getResponse();
         String value = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
         assertEquals(id.toString(), JWTParser.parse(value).getJWTClaimsSet().getStringClaim("eid"));
-        assertNotNull(getAuthToken(eperson.getEmail(), password));
+        assertNotNull(getAuthToken(email, password));
         assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
     }
 
