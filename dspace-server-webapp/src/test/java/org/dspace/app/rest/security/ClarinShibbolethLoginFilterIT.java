@@ -43,6 +43,7 @@ import org.dspace.app.rest.test.AbstractControllerIntegrationTest;
 import org.dspace.app.rest.utils.Utils;
 import org.dspace.app.util.Util;
 import org.dspace.builder.BitstreamBuilder;
+import org.dspace.builder.ClarinUserRegistrationBuilder;
 import org.dspace.builder.CollectionBuilder;
 import org.dspace.builder.CommunityBuilder;
 import org.dspace.builder.EPersonBuilder;
@@ -51,6 +52,7 @@ import org.dspace.builder.ItemBuilder;
 import org.dspace.content.Bitstream;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
+import org.dspace.content.clarin.ClarinUserRegistration;
 import org.dspace.content.clarin.ClarinVerificationToken;
 import org.dspace.content.service.clarin.ClarinVerificationTokenService;
 import org.dspace.core.I18nUtil;
@@ -748,14 +750,12 @@ public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegration
             context.turnOffAuthorisationSystem();
             original.setNetid(null);
             ePersonService.update(context, original);
-            org.dspace.content.clarin.ClarinUserRegistration registration =
-                    new org.dspace.content.clarin.ClarinUserRegistration();
-            registration.setPersonID(original.getID());
-            registration.setEmail(original.getEmail());
-            registration.setOrganization(original == admin ? "administrator" : IDP_TEST_EPERSON);
-            registration.setConfirmation(true);
-            org.dspace.content.factory.ClarinServiceFactory.getInstance().getClarinUserRegistration()
-                    .create(context, registration);
+            ClarinUserRegistration registration = ClarinUserRegistrationBuilder.createClarinUserRegistration(context)
+                    .withEPersonID(original.getID())
+                    .withEmail(original.getEmail())
+                    .withOrganization(original == admin ? "administrator" : IDP_TEST_EPERSON)
+                    .withConfirmation(true)
+                    .build();
             context.commit();
             context.restoreAuthSystemState();
             for (int retry = 0; retry < 2; retry++) {
