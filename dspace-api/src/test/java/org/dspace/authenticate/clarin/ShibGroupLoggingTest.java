@@ -114,4 +114,16 @@ public class ShibGroupLoggingTest extends AbstractDSpaceTest {
         assertFalse(output.contains(EMAIL));
         assertFalse(output.contains(ENTITLEMENT));
     }
+    @Test
+    public void anotherRequestCannotReplaceGroupMappingConfiguration() throws Exception {
+        Group group = mock(Group.class);
+        UUID id = UUID.randomUUID();
+        when(group.getID()).thenReturn(id);
+        when(mapping.groupService.findByName(any(), anyString())).thenReturn(group);
+        DSpaceServicesFactory.getInstance().getConfigurationService()
+                .setProperty("authentication-shibboleth.role-header", "other-request-role");
+        new ShibGroup(new ShibHeaders(new MockHttpServletRequest()), mock(Context.class));
+        assertEquals(List.of(id), mapping.get());
+    }
+
 }

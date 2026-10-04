@@ -7,6 +7,7 @@
  */
 package org.dspace.content.clarin;
 
+import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -14,6 +15,8 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 
 import org.dspace.core.ReloadableEntity;
 
@@ -59,6 +62,29 @@ public class ClarinVerificationToken implements ReloadableEntity<Integer> {
      */
     @Column(name = "token")
     private String token = null;
+
+    @Column(name = "request_token")
+    private String requestToken;
+
+    @Column(name = "expires")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date expires;
+
+    public String getRequestToken() {
+        return requestToken;
+    }
+
+    public void setRequestToken(String requestToken) {
+        this.requestToken = requestToken;
+    }
+
+    public Date getExpires() {
+        return expires;
+    }
+
+    public void setExpires(Date expires) {
+        this.expires = expires;
+    }
 
     public ClarinVerificationToken() {
     }

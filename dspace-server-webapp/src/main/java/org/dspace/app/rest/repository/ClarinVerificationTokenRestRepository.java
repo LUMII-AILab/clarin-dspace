@@ -40,7 +40,7 @@ public class ClarinVerificationTokenRestRepository extends DSpaceRestRepository<
     ClarinVerificationTokenService clarinVerificationTokenService;
 
     @Override
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ClarinVerificationTokenRest findOne(Context context, Integer integer) {
         ClarinVerificationToken clarinVerificationToken;
         try {
@@ -66,6 +66,7 @@ public class ClarinVerificationTokenRestRepository extends DSpaceRestRepository<
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @SearchRestMethod(name = "byNetId")
     public Page<ClarinVerificationTokenRest> findByNetId(@Parameter(value = "netid", required = true) String netid,
                                                           Pageable pageable) throws SQLException {
@@ -99,7 +100,7 @@ public class ClarinVerificationTokenRestRepository extends DSpaceRestRepository<
     }
 
     @Override
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("hasAuthority('ADMIN')")
     protected void delete(Context context, Integer id) throws AuthorizeException {
         ClarinVerificationToken clarinVerificationToken ;
         try {

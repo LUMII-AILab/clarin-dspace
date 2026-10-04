@@ -8,6 +8,7 @@
 package org.dspace.content.dao.impl.clarin;
 
 import java.sql.SQLException;
+import java.util.Date;
 import javax.persistence.Query;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -36,7 +37,7 @@ public class ClarinVerificationTokenDAOImpl extends AbstractHibernateDAO<ClarinV
                 "WHERE cvt.token = :token");
 
         query.setParameter("token", token);
-        query.setHint("org.hibernate.cacheable", Boolean.TRUE);
+        query.setHint("org.hibernate.cacheable", Boolean.FALSE);
 
         return singleResult(query);
     }
@@ -47,10 +48,20 @@ public class ClarinVerificationTokenDAOImpl extends AbstractHibernateDAO<ClarinV
         CriteriaQuery criteriaQuery = getCriteriaQuery(criteriaBuilder, ClarinVerificationToken.class);
         Root<ClarinVerificationToken> clarinVerificationTokenRoot = criteriaQuery.from(ClarinVerificationToken.class);
         criteriaQuery.select(clarinVerificationTokenRoot);
-        criteriaQuery.where(criteriaBuilder.like(clarinVerificationTokenRoot.get(ClarinVerificationToken_.ePersonNetID),
-                "%" + netID + "%"));
+        criteriaQuery.where(criteriaBuilder.equal(
+                clarinVerificationTokenRoot.get(ClarinVerificationToken_.ePersonNetID), netID));
         criteriaQuery.orderBy(criteriaBuilder.asc(clarinVerificationTokenRoot.
                 get(ClarinVerificationToken_.ePersonNetID)));
         return singleResult(context, criteriaQuery);
     }
+    @Override
+    public boolean consume(Context context, ClarinVerificationToken token) throws SQLException {
+        Query query = createQuery(context, "DELETE FROM ClarinVerificationToken "
+                + "WHERE id = :id AND token = :token AND expires > :now");
+        query.setParameter("id", token.getID());
+        query.setParameter("token", token.getToken());
+        query.setParameter("now", new Date());
+        return query.executeUpdate() == 1;
+    }
+
 }

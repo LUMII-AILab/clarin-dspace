@@ -131,7 +131,7 @@ public class ShibHeaders {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for ( Map.Entry<String, List<String>> i : headers_.get().entrySet() ) {
-            if (StringUtils.equals("cookie", i.getKey())) {
+            if (Arrays.asList("cookie", "authorization", "verification-token", "x-xsrf-token").contains(i.getKey())) {
                 continue;
             }
             sb.append(String.format("%s=%s\n",

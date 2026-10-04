@@ -8,6 +8,7 @@
 package org.dspace.content.clarin;
 
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
@@ -68,7 +69,11 @@ public class ClarinVerificationTokenServiceImpl implements ClarinVerificationTok
 
     @Override
     public ClarinVerificationToken findByToken(Context context, String token) throws SQLException {
-        return clarinVerificationTokenDAO.findByToken(context, token);
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        ClarinVerificationToken found = clarinVerificationTokenDAO.findByToken(context, token);
+        return found != null && found.getExpires() != null && found.getExpires().after(new Date()) ? found : null;
     }
 
     @Override
@@ -111,4 +116,9 @@ public class ClarinVerificationTokenServiceImpl implements ClarinVerificationTok
 
         clarinVerificationTokenDAO.save(context, newClarinVerificationToken);
     }
+    @Override
+    public boolean consume(Context context, ClarinVerificationToken token) throws SQLException {
+        return clarinVerificationTokenDAO.consume(context, token);
+    }
+
 }

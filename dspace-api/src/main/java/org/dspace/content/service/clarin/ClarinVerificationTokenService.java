@@ -24,6 +24,10 @@ import org.dspace.core.Context;
  */
 public interface ClarinVerificationTokenService {
 
+    /** Atomically consume a still-valid emailed credential before issuing authentication data. */
+    boolean consume(Context context, ClarinVerificationToken token) throws SQLException;
+
+
     /**
      * Create a new clarin verification token.
      *

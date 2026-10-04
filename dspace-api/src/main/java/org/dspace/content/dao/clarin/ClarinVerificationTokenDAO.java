@@ -23,6 +23,8 @@ import org.dspace.core.GenericDAO;
  */
 public interface ClarinVerificationTokenDAO extends GenericDAO<ClarinVerificationToken> {
 
+    boolean consume(Context context, ClarinVerificationToken token) throws SQLException;
+
     ClarinVerificationToken findByToken(Context context, String token) throws SQLException;
     ClarinVerificationToken findByNetID(Context context, String netID) throws SQLException;
 }

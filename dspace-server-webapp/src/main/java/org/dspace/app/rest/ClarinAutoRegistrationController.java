@@ -9,13 +9,17 @@ package org.dspace.app.rest;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Logger;
+import org.dspace.app.rest.security.clarin.ClarinShibbolethLoginFilter;
+import org.dspace.authenticate.AuthenticationMethod;
 import org.dspace.authenticate.clarin.ClarinShibAuthentication;
 import org.dspace.authenticate.clarin.ShibHeaders;
 import org.dspace.content.clarin.ClarinVerificationToken;
@@ -34,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.WebUtils;
 
 /**
  * If the Shibboleth authentication failed because the IdP hasn't sent the `SHIB-EMAIL` header.
@@ -77,10 +82,12 @@ public class ClarinAutoRegistrationController {
         // ClarinShibbolethLoginFilter. It is created with the user `netid` and `shib_headers` which are passed
         // from the IdP.
         ClarinVerificationToken clarinVerificationToken = clarinVerificationTokenService.findByNetID(context, netid);
-        if (Objects.isNull(clarinVerificationToken)) {
-            // The verification token doesn't exist.
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Cannot load the clarin verification " +
-                    "token class by net id: " + netid);
+        Cookie proof = WebUtils.getCookie(request, ClarinShibbolethLoginFilter.VERIFICATION_REQUEST_COOKIE);
+        if (clarinVerificationToken == null || proof == null
+                || !StringUtils.equals(proof.getValue(), clarinVerificationToken.getRequestToken())
+                || clarinVerificationToken.getExpires() == null
+                || !clarinVerificationToken.getExpires().after(new Date())) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Restart institutional sign-in to verify email.");
             return null;
         }
 
@@ -112,7 +119,7 @@ public class ClarinAutoRegistrationController {
             bean.addRecipient(email);
             bean.send();
         } catch (Exception e) {
-            log.error("Cannot send the email because: " + e.getMessage());
+            log.error("Cannot send verification email; transport details redacted.");
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Cannot send the email");
             return null;
         }
@@ -155,7 +162,12 @@ public class ClarinAutoRegistrationController {
         // These headers are retrieved in the ClarinShibAuthentication.authenticate method.
         request.setAttribute("shib.headers", clarinVerificationToken.getShibHeaders());
         try {
-            new ClarinShibAuthentication().authenticate(context, "", "", "", request);
+            if (new ClarinShibAuthentication().authenticate(context, "", "", "", request)
+                    != AuthenticationMethod.SUCCESS) {
+                context.abort();
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Cannot verify this institutional account.");
+                return null;
+            }
         } catch (SQLException e) {
             log.error("Cannot authenticate the user by an autoregistration URL because: " + e.getSQLState());
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

@@ -7,32 +7,41 @@
  */
 package org.dspace.app.rest.security;
 
+import static org.dspace.app.rest.security.ShibbolethLoginFilterIT.PASS_ONLY;
+import static org.dspace.app.rest.security.clarin.ClarinShibbolethLoginFilter.VERIFICATION_TOKEN_HEADER;
+import static org.dspace.rdf.negotiation.MediaRange.token;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.ByteArrayInputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.http.Cookie;
+import javax.ws.rs.core.MediaType;
 
-import com.nimbusds.jwt.JWTParser;
+import org.dspace.app.rest.authorization.impl.CanChangePasswordFeature;
+import org.dspace.app.rest.converter.EPersonConverter;
+import org.dspace.app.rest.model.EPersonRest;
+import org.dspace.app.rest.model.patch.AddOperation;
+import org.dspace.app.rest.model.patch.Operation;
+import org.dspace.app.rest.projection.DefaultProjection;
 import org.dspace.app.rest.test.AbstractControllerIntegrationTest;
+import org.dspace.app.rest.utils.Utils;
 import org.dspace.app.util.Util;
-import org.dspace.authenticate.clarin.ClarinShibAuthentication;
-import org.dspace.authorize.factory.AuthorizeServiceFactory;
 import org.dspace.builder.BitstreamBuilder;
 import org.dspace.builder.CollectionBuilder;
 import org.dspace.builder.CommunityBuilder;
@@ -42,445 +51,894 @@ import org.dspace.builder.ItemBuilder;
 import org.dspace.content.Bitstream;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
-import org.dspace.content.clarin.ClarinUserRegistration;
-import org.dspace.content.factory.ClarinServiceFactory;
-import org.dspace.core.Context;
+import org.dspace.content.clarin.ClarinVerificationToken;
+import org.dspace.content.service.clarin.ClarinVerificationTokenService;
+import org.dspace.core.I18nUtil;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
-import org.dspace.eperson.factory.EPersonServiceFactory;
+import org.dspace.eperson.service.EPersonService;
 import org.dspace.services.ConfigurationService;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-/** Real DSpace/H2 account and permission tests, with the SP boundary tested separately by the Docker lab. */
+/**
+ * The test class for the customized Shibboleth Authentication Process.
+ *
+ * @author Milan Majchrak (milan.majchrak at dataquest.sk).
+ */
 public class ClarinShibbolethLoginFilterIT extends AbstractControllerIntegrationTest {
-    private static final String IDP = "https://idp.auth.test/idp";
-    private static final String CALLBACK = "/api/authn/shibboleth";
-    private EPerson institutional;
-    private Group preservedGroup;
+
+    public static final String[] SHIB_ONLY = {"org.dspace.authenticate.clarin.ClarinShibAuthentication"};
+    private static final String NET_ID_EPPN_HEADER = "eppn";
+    private static final String NET_ID_PERSISTENT_ID = "persistent-id";
+    private static final String NET_ID_TEST_EPERSON = "123456789";
+    private static final String IDP_TEST_EPERSON = "Test Idp";
+    private static final String KNIHOVNA_KUN_TEST_ZLUTOUCKY = "knihovna Kůň test Žluťoučký";
+
+
+    private EPersonRest ePersonRest;
+    private final String feature = CanChangePasswordFeature.NAME;
+    private EPerson clarinEperson;
 
     @Autowired
-    private ConfigurationService configurationService;
+    ConfigurationService configurationService;
+
+    @Autowired
+    ClarinVerificationTokenService clarinVerificationTokenService;
+
+    @Autowired
+    EPersonService ePersonService;
+
+    @Autowired
+    private EPersonConverter ePersonConverter;
+
+    @Autowired
+    private Utils utils;
+
 
     @Before
-    public void configure() throws Exception {
-        configurationService.setProperty("plugin.sequence.org.dspace.authenticate.AuthenticationMethod",
-            new String[] {"org.dspace.authenticate.clarin.ClarinShibAuthentication",
-                "org.dspace.authenticate.PasswordAuthentication"});
-        configurationService.setProperty("authentication-shibboleth.netid-header", "eppn,persistent-id");
-        configurationService.setProperty("authentication-shibboleth.autoregister", true);
-        configurationService.setProperty("authentication-shibboleth.email-header", "mail");
-        configurationService.setProperty("authentication-shibboleth.firstname-header", "givenName");
-        configurationService.setProperty("authentication-shibboleth.lastname-header", "sn");
-        configurationService.setProperty("authentication-shibboleth.lazysession.loginurl",
-                "https://repository.auth.test/Shibboleth.sso/Login");
-        configurationService.setProperty("dspace.ui.url", "https://repository.auth.test/repository");
+    public void setup() throws Exception {
+        super.setUp();
+        // Add a second trusted host for some tests
+        configurationService.setProperty("rest.cors.allowed-origins",
+                "${dspace.ui.url}, http://anotherdspacehost:4000");
+
+        // Enable Shibboleth login for all tests
+        configurationService.setProperty("plugin.sequence.org.dspace.authenticate.AuthenticationMethod", SHIB_ONLY);
+        ePersonRest = ePersonConverter.convert(eperson, DefaultProjection.DEFAULT);
+
         context.turnOffAuthorisationSystem();
-        institutional = EPersonBuilder.createEPerson(context).withEmail("institutional@auth.test")
-                .withNameInMetadata("Existing", "Account").withCanLogin(false)
-                .withNetId(Util.formatNetId("known", IDP)).build();
-        preservedGroup = GroupBuilder.createGroup(context).withName("Preserved institutional permission")
-                .addMember(institutional).build();
+        clarinEperson = EPersonBuilder.createEPerson(context)
+                .withCanLogin(false)
+                .withEmail("clarin@email.com")
+                .withNameInMetadata("first", "last")
+                .withLanguage(I18nUtil.getDefaultLocale().getLanguage())
+                .withNetId(Util.formatNetId(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON))
+                .build();
         context.restoreAuthSystemState();
-        context.commit();
     }
 
+    @Override
     @After
-    public void removeProvisionedAccounts() throws Exception {
-        // These accounts are created by the real login service, so AbstractBuilder
-        // does not own them. Remove their registrations before deleting the accounts.
-        try (Context cleanup = new Context()) {
-            cleanup.turnOffAuthorisationSystem();
-            java.util.ArrayList<String> identifiers = new java.util.ArrayList<>();
-            for (String identifier : new String[] {
-                "new-user", "concurrent", "first", "second", "failed-registration", "invalid-new-user", "netid-only"}) {
-                identifiers.add(Util.formatNetId(identifier, IDP));
-            }
-            for (String email : new String[] {"email.only@auth.test", "concurrent.email@auth.test"}) {
-                identifiers.add(ClarinShibAuthentication.emailIdentity(IDP, email));
-            }
-            for (String identifier : identifiers) {
-                EPerson created = EPersonServiceFactory.getInstance().getEPersonService()
-                        .findByNetid(cleanup, identifier);
-                if (created != null) {
-                    for (ClarinUserRegistration record : ClarinServiceFactory.getInstance()
-                            .getClarinUserRegistration().findByEPersonUUID(cleanup, created.getID())) {
-                        ClarinServiceFactory.getInstance().getClarinUserRegistration().delete(cleanup, record);
-                    }
-                    EPersonServiceFactory.getInstance().getEPersonService().delete(cleanup, created);
-                }
-            }
-            cleanup.complete();
-        }
+    public void destroy() throws Exception {
+        // Remove the created user manually because some tests are failing
+        EPersonBuilder.deleteEPerson(clarinEperson.getID());
+        super.destroy();
     }
 
-    private MockHttpServletRequestBuilder login(String identifier, String email) {
-        MockHttpServletRequestBuilder request = get(CALLBACK).header("Shib-Identity-Provider", IDP)
-                .header("Shib-Session-ID", "synthetic-session");
-        if (identifier != null) {
-            request.header("eppn", identifier);
+    /**
+     * Test the IdP hasn't sent the `Shib-Identity-Provider` or `SHIB-NETID` header.
+     */
+    @Test
+    public void shouldReturnMissingHeadersFromIdpExceptionBecauseOfMissingIdp() throws Exception {
+        String idp = "Test Idp";
+
+        // Try to authenticate but the Shibboleth doesn't send the email in the header, so the user won't be registered
+        // but the user will be redirected to the page where he will fill in the user email.
+        getClient().perform(get("/api/authn/shibboleth"))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/missing-headers"));
+    }
+
+    /**
+     * Test:
+     * The IdP hasn't sent the `SHIB-EMAIL` header.
+     * The request headers passed by IdP are stored into the `verification_token` table the `shib_headers` column.
+     * The user is redirected to the page when he must fill his email.
+     */
+    // HERE
+    @Test
+    public void shouldReturnUserWithoutEmailException() throws Exception {
+        // Create a new netId because the user shouldn't exist
+        String netId  = NET_ID_TEST_EPERSON + 986;
+        // Try to authenticate but the Shibboleth doesn't send the email in the header, so the user won't be registered
+        // but the user will be redirected to the page where he will fill in the user email.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-NETID", netId)
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/auth-failed?netid=" +
+                        URLEncoder.encode(Objects.requireNonNull(Util.formatNetId(netId, IDP_TEST_EPERSON)),
+                                StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * Test the authentication process:
+     * 1. The IdP hasn't sent the `SHIB-EMAIL` header and the user is redirected to the page to fill in his email.
+     * 2. Test to `ClarinAutoregistrationController.sendEmail` method to send the verification email to the users
+     * email.
+     * 3. Validate the users verification token and authenticate the user by the verification token. The user is
+     * automatically registered and signed in.
+     * 4. If the user is registered he is automatically signed in by the NETID which is passed from the IdP.
+     * @throws Exception
+     */
+    @Test
+    public void userFillInEmailAndShouldBeRegisteredByVerificationToken() throws Exception {
+        String email = "test@mail.epic";
+        String netId = email;
+        String idp = "Test Idp";
+
+        // Try to authenticate but the Shibboleth doesn't send the email in the header, so the user won't be registered
+        // but the user will be redirected to the page where he will fill in the user email.
+        javax.servlet.http.Cookie proof = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp)
+                        .header("SHIB-NETID", netId))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/auth-failed?netid=" +
+                        URLEncoder.encode(Objects.requireNonNull(Util.formatNetId(netId, idp)),
+                                StandardCharsets.UTF_8)))
+                .andReturn().getResponse().getCookie("DSPACE-SHIB-VERIFICATION");
+
+        // Send the email with the verification token.
+        String tokenAdmin = getAuthToken(admin.getEmail(), password);
+        getClient(tokenAdmin).perform(post("/api/autoregistration").cookie(proof)
+                        .param("netid", Util.formatNetId(netId, idp)).param("email", email)
+                        .contentType(MediaType.APPLICATION_JSON_PATCH_JSON))
+                .andExpect(status().isOk());
+
+        // Load the created verification token.
+        ClarinVerificationToken clarinVerificationToken = clarinVerificationTokenService.findByNetID(
+                context, Util.formatNetId(netId, idp));
+        assertTrue(Objects.nonNull(clarinVerificationToken));
+
+        // Register the user by the verification token.
+        getClient(tokenAdmin).perform(get("/api/autoregistration?verification-token=" +
+                        clarinVerificationToken.getToken())
+                        .contentType(MediaType.APPLICATION_JSON_PATCH_JSON))
+                .andExpect(status().isOk());
+
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = checkUserWasCreated(netId, idp, email, null);
+
+        // The user is registered now log him
+        getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, clarinVerificationToken.getToken()))
+                .andExpect(status().isOk());
+
+        getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, clarinVerificationToken.getToken()))
+                .andExpect(status().isUnauthorized());
+
+        // Try to sign in the user by the email if the eperson exist
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp)
+                        .header("SHIB-NETID", netId)
+                        .header("SHIB-MAIL", email))
+                .andExpect(status().isFound());
+
+        // Try to sign in the user by the netid if the eperson exist
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp)
+                        .header("SHIB-NETID", netId))
+                .andExpect(status().isFound());
+
+        // Delete created eperson - clean after the test
+        deleteShibbolethUser(ePerson);
+    }
+
+    @Test
+    public void testShouldReturnDuplicateUserError() throws Exception {
+        String email = "test@mail.epic";
+        String netId = email;
+
+        String differentIdP = "Different IdP";
+
+        // login through shibboleth
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", email)
+                        .header("SHIB-NETID", netId)
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = ePersonService.findByNetid(context, Util.formatNetId(netId, IDP_TEST_EPERSON));
+        assertTrue(Objects.nonNull(ePerson));
+        assertEquals(ePerson.getEmail(), email);
+        assertEquals(ePerson.getNetid(), Util.formatNetId(netId, IDP_TEST_EPERSON));
+
+        // Try to login with the same email, but from the different IdP, the user should be redirected to the
+        // duplicate error page
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", email)
+                        .header("SHIB-NETID", netId)
+                        .header("Shib-Identity-Provider", differentIdP))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000/login/duplicate-user"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        // Delete created eperson - clean after the test
+        EPersonBuilder.deleteEPerson(ePerson.getID());
+    }
+
+    // Login with email without netid, but the user with such email already exists and it has assigned netid.
+    @Test
+    public void testShouldReturnDuplicateUserErrorLoginWithoutNetId() throws Exception {
+        String email = "test@email.sk";
+        String netId = email;
+
+        // login through shibboleth
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", email)
+                        .header("SHIB-NETID", netId)
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        // Should not login because the user with such email already exists
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", email)
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000/login/duplicate-user"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = checkUserWasCreated(netId, IDP_TEST_EPERSON, email, null);
+        deleteShibbolethUser(ePerson);
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRedirectToGivenTrustedUrl() throws Exception {
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .param("redirectUrl", "http://localhost:4000/items/retained?x=1&y=2")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000/items/retained?x=1&y=2"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        getClient(token).perform(
+                        get("/api/authz/authorizations/search/object")
+                                .param("embed", "feature")
+                                .param("feature", feature)
+                                .param("uri", utils.linkToSingleResource(ePersonRest, "self").getHref()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements", is(0)))
+                .andExpect(jsonPath("$._embedded").doesNotExist());
+
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void patchPassword() throws Exception {
+        String newPassword = "newpassword";
+
+        List<Operation> ops = new ArrayList<Operation>();
+        AddOperation addOperation = new AddOperation("/password", newPassword);
+        ops.add(addOperation);
+        String patchBody = getPatchContent(ops);
+
+        // login through shibboleth
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                    .header("SHIB-MAIL", clarinEperson.getEmail())
+                    .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                    .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        // updates password
+        getClient(token).perform(patch("/api/eperson/epersons/" + clarinEperson.getID())
+                        .content(patchBody)
+                        .contentType(MediaType.APPLICATION_JSON_PATCH_JSON))
+                .andExpect(status().isForbidden());
+
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRedirectToDefaultDspaceUrl() throws Exception {
+        // NOTE: The initial call to /shibboleth comes *from* an external Shibboleth site. So, it is always
+        // unauthenticated, but it must include some expected SHIB attributes.
+        // SHIB-MAIL attribute is the default email header sent from Shibboleth after a successful login.
+        // In this test we are simply mocking that behavior by setting it to an existing EPerson.
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                    .header("SHIB-MAIL", clarinEperson.getEmail())
+                    .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                    .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        getClient(token).perform(
+                        get("/api/authz/authorizations/search/object")
+                                .param("embed", "feature")
+                                .param("feature", feature)
+                                .param("uri", utils.linkToSingleResource(ePersonRest, "self").getHref()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements", is(0)))
+                .andExpect(jsonPath("$._embedded").doesNotExist());
+
+    }
+
+    // This test is copied from the `AuthenticationRestControllerIT` and modified following the Clarin updates.
+    @Test
+    public void testShibbolethEndpointCannotBeUsedWithShibDisabled() throws Exception {
+        // Enable only password login
+        configurationService.setProperty("plugin.sequence.org.dspace.authenticate.AuthenticationMethod", PASS_ONLY);
+
+        String uiURL = configurationService.getProperty("dspace.ui.url");
+
+        // Verify /api/authn/shibboleth endpoint does not work
+        // NOTE: this is the same call as in testStatusShibAuthenticatedWithCookie())
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Referer", "https://myshib.example.com")
+                        .param("redirectUrl", uiURL)
+                        .requestAttr("SHIB-MAIL", eperson.getEmail())
+                        .requestAttr("SHIB-SCOPED-AFFILIATION", "faculty;staff"))
+                .andExpect(status().isFound())
+                .andReturn().getResponse().getHeader("Authorization");
+
+        getClient(token).perform(get("/api/authn/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated", is(false)))
+                .andExpect(jsonPath("$.authenticationMethod").doesNotExist());
+
+        getClient(token).perform(
+                        get("/api/authz/authorizations/search/object")
+                                .param("embed", "feature")
+                                .param("feature", feature)
+                                .param("uri", utils.linkToSingleResource(ePersonRest, "self").getHref()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements", is(0)))
+                .andExpect(jsonPath("$._embedded").doesNotExist());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testNoRedirectIfInvalidShibAttributes() throws Exception {
+        // In this request, we use a SHIB-MAIL attribute which does NOT match an EPerson.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .requestAttr("SHIB-MAIL", "not-an-eperson@example.com"))
+                .andExpect(status().isFound());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testNoRedirectIfShibbolethDisabled() throws Exception {
+        // Enable Password authentication ONLY
+        configurationService.setProperty("plugin.sequence.org.dspace.authenticate.AuthenticationMethod", PASS_ONLY);
+
+        // Test redirecting to a trusted URL (same as previous test).
+        // This time we should be unauthorized as Shibboleth is disabled.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .param("redirectUrl", "http://localhost:4000/items/retained?x=1&y=2")
+                        .requestAttr("SHIB-MAIL", eperson.getEmail()))
+                .andExpect(status().isFound());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRedirectRequiresShibAttributes2() throws Exception {
+        String token = getAuthToken(eperson.getEmail(), password);
+
+        // Verify this endpoint also doesn't work using a regular auth token (again if SHIB-* attributes missing)
+        getClient(token).perform(get("/api/authn/shibboleth"))
+                .andExpect(status().isFound());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRedirectRequiresShibAttributes() throws Exception {
+        // Verify this endpoint doesn't work if no SHIB-* attributes are set
+        getClient().perform(get("/api/authn/shibboleth"))
+                .andExpect(status().isFound());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRejectsDifferentCorsOriginAsLoginReturn() throws Exception {
+        getClient().perform(get("/api/authn/shibboleth")
+                        .param("redirectUrl", "http://anotherdspacehost:4000/")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    // This test is copied from the `ShibbolethLoginFilterIT` and modified following the Clarin updates.
+    @Test
+    public void testRedirectToGivenUntrustedUrl() throws Exception {
+        // Now attempt to redirect to a URL that is NOT trusted (i.e. not in 'rest.cors.allowed-origins').
+
+        // Should result in a 400 error.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .param("redirectUrl", "http://dspace.org")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void testISOShibHeaders() throws Exception {
+        String testMail = "test@email.edu";
+        String testIdp = IDP_TEST_EPERSON + "test";
+        String testNetId = NET_ID_TEST_EPERSON + "000";
+        // NOTE: The initial call to /shibboleth comes *from* an external Shibboleth site. So, it is always
+        // unauthenticated, but it must include some expected SHIB attributes.
+        // SHIB-MAIL attribute is the default email header sent from Shibboleth after a successful login.
+        // In this test we are simply mocking that behavior by setting it to an existing EPerson.
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", testMail)
+                        .header("Shib-Identity-Provider", testIdp)
+                        .header("SHIB-NETID", testNetId)
+                        .header("SHIB-GIVENNAME", "knihovna KÅ¯Å\u0088 test Å½luÅ¥ouÄ\u008DkÃ½"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = checkUserWasCreated(testNetId, testIdp, testMail, KNIHOVNA_KUN_TEST_ZLUTOUCKY);
+        deleteShibbolethUser(ePerson);
+    }
+
+    @Test
+    public void testUTF8ShibHeaders() throws Exception {
+        String testMail = "test@email.edu";
+        String testIdp = IDP_TEST_EPERSON + "test";
+        String testNetId = NET_ID_TEST_EPERSON + "000";
+        // NOTE: The initial call to /shibboleth comes *from* an external Shibboleth site. So, it is always
+        // unauthenticated, but it must include some expected SHIB attributes.
+        // SHIB-MAIL attribute is the default email header sent from Shibboleth after a successful login.
+        // In this test we are simply mocking that behavior by setting it to an existing EPerson.
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", testMail)
+                        .header("Shib-Identity-Provider", testIdp)
+                        .header("SHIB-NETID", testNetId)
+                        .header("SHIB-GIVENNAME", KNIHOVNA_KUN_TEST_ZLUTOUCKY))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = checkUserWasCreated(testNetId, testIdp, testMail, KNIHOVNA_KUN_TEST_ZLUTOUCKY);
+        deleteShibbolethUser(ePerson);
+    }
+
+    @Test
+    public void testRedirectToMissingHeadersWithRedirectUrlParam() throws Exception {
+        String expectedMissingHeadersUrl = configurationService.getProperty("dspace.ui.url") + "/login/missing-headers";
+
+        getClient().perform(get("/api/authn/shibboleth")
+                        .param("redirectUrl", "http://localhost:4000/items/retained?x=1&y=2")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(expectedMissingHeadersUrl));
+    }
+
+    // eppn is set
+    @Test
+    public void testSuccessFullLoginEppnNetId() throws Exception {
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header(NET_ID_EPPN_HEADER, NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+
+        EPerson ePerson = checkUserWasCreated(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON, clarinEperson.getEmail(), null);
+        deleteShibbolethUser(ePerson);
+    }
+
+    // persistent-id is set
+    @Test
+    public void testSuccessFullLoginPersistentIdNetId() throws Exception {
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header(NET_ID_PERSISTENT_ID, NET_ID_TEST_EPERSON))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+        EPerson ePerson = checkUserWasCreated(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON, clarinEperson.getEmail(), null);
+        deleteShibbolethUser(ePerson);
+    }
+
+    @Test
+    public void testSuccessFullLoginWithTwoEmails() throws Exception {
+        String firstEmail = "efg@test.edu";
+        String secondEmail = "abc@test.edu";
+        String token = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-MAIL", firstEmail + ";" + secondEmail))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(token);
+        // Find the user by the second email
+        EPerson ePerson = checkUserWasCreated(null, IDP_TEST_EPERSON, secondEmail, null);
+        assertTrue(Objects.nonNull(ePerson));
+        deleteShibbolethUser(ePerson);
+    }
+
+    // The user has changed the email. But that email is already used by another user.
+    @Test
+    public void testDuplicateEmailError() throws Exception {
+        String userWithEppnEmail = "user@eppn.sk";
+        String customEppn = "custom eppn";
+
+        // Create a user with netid and email
+        String tokenEppnUser = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header(NET_ID_PERSISTENT_ID, customEppn)
+                        .header("SHIB-MAIL", userWithEppnEmail))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000"))
+                .andReturn().getResponse().getHeader("Authorization");
+
+        checkUserIsSignedIn(tokenEppnUser);
+
+        // Try to update an email of existing user - the email is already used by another user - the user should be
+        // redirected to the login page
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header(NET_ID_PERSISTENT_ID, NET_ID_TEST_EPERSON)
+                        .header("SHIB-MAIL", userWithEppnEmail))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:4000/login?error=shibboleth-authentication-failed"));
+
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = checkUserWasCreated(customEppn, IDP_TEST_EPERSON, userWithEppnEmail, null);
+        // Delete created eperson - clean after the test
+        deleteShibbolethUser(ePerson);
+    }
+
+    //  mail=null, eppn=null, persistent-id=somestring
+    @Test
+    public void shouldAskForEmailWhenHasPersistentId() throws Exception {
+        String persistentId = "some pid";
+
+        // Try to log in a user without email, but with persistent id. The user should be redirected to the page where
+        // he will fill in the user email.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header(NET_ID_PERSISTENT_ID, persistentId))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/auth-failed?netid=" +
+                        URLEncoder.encode(Objects.requireNonNull(Util.formatNetId(persistentId, IDP_TEST_EPERSON)),
+                                StandardCharsets.UTF_8)));
+    }
+
+    // The user was registered and signed in with the verification token on the second attempt, after the email
+    // containing the verification token was sent.
+    @Test
+    public void shouldNotAuthenticateOnSecondAttemptWithoutVerificationTokenInRequest() throws Exception {
+        String email = "test@mail.epic";
+        String netId = email;
+        String idp = "Test Idp";
+
+        // Try to authenticate but the Shibboleth doesn't send the email in the header, so the user won't be registered
+        // but the user will be redirected to the page where he will fill in the user email.
+        javax.servlet.http.Cookie proof = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp)
+                        .header("SHIB-NETID", netId))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/auth-failed?netid=" +
+                        URLEncoder.encode(Objects.requireNonNull(Util.formatNetId(netId, idp)),
+                                StandardCharsets.UTF_8)))
+                .andReturn().getResponse().getCookie("DSPACE-SHIB-VERIFICATION");
+
+        // Send the email with the verification token.
+        String tokenAdmin = getAuthToken(admin.getEmail(), password);
+        getClient(tokenAdmin).perform(post("/api/autoregistration").cookie(proof)
+                        .param("netid", Util.formatNetId(netId, idp)).param("email", email)
+                        .contentType(MediaType.APPLICATION_JSON_PATCH_JSON))
+                .andExpect(status().isOk());
+
+        // Load the created verification token.
+        ClarinVerificationToken clarinVerificationToken = clarinVerificationTokenService.findByNetID(
+                context, Util.formatNetId(netId, idp));
+        assertTrue(Objects.nonNull(clarinVerificationToken));
+
+        // Try to authenticate the user again, and it should NOT to be automatically registered and signed in,
+        // because the verification token is not passed in the request header.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp)
+                        .header("SHIB-NETID", netId))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/auth-failed?netid=" +
+                        URLEncoder.encode(Objects.requireNonNull(Util.formatNetId(netId, idp)),
+                                StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    public void shouldSendShibbolethAuthError() throws Exception {
+        String idp = "Test Idp";
+
+        // Try to authenticate but the Shibboleth doesn't send the email or netid in the header,
+        // so the user won't be registered but the user will be redirected to the login page with the error message.
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", idp))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("http://localhost:4000/login/missing-headers"));
+    }
+
+    private EPerson checkUserWasCreated(String netIdValue, String idpValue, String email, String name)
+            throws SQLException {
+        // Check if was created a user with such email and netid.
+        EPerson ePerson = null;
+        if (netIdValue != null) {
+            ePerson = ePersonService.findByNetid(context, Util.formatNetId(netIdValue, idpValue));
+        } else {
+            ePerson = ePersonService.findByEmail(context, email);
         }
+        assertTrue(Objects.nonNull(ePerson));
         if (email != null) {
-            request.header("mail", email);
+            assertEquals(ePerson.getEmail(), email);
         }
-        return request;
+
+        if (name != null) {
+            assertEquals(ePerson.getFirstName(), name);
+        }
+        return ePerson;
     }
 
-    @Test
-    public void exactIdentityKeepsUuidProfileGroupsAndCount() throws Exception {
-        int count = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        for (int i = 0; i < 2; i++) {
-            MockHttpServletResponse response = getClient().perform(login("known", "changed@auth.test")
-                    .param("redirectUrl", "https://repository.auth.test/repository/items/one?x=1&y=2"))
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository/items/one?x=1&y=2"))
-                    .andReturn().getResponse();
-            Cookie cookie = response.getCookie(AUTHORIZATION_COOKIE);
-            assertNotNull(cookie);
-            String token = cookie.getValue().replace("Bearer ", "");
-            assertEquals(institutional.getID().toString(),
-                    JWTParser.parse(token).getJWTClaimsSet().getStringClaim("eid"));
-            assertEquals("shibboleth",
-                    JWTParser.parse(token).getJWTClaimsSet().getStringClaim("authenticationMethod"));
-        }
-        context.uncacheEntity(institutional);
-        EPerson actual = EPersonServiceFactory.getInstance().getEPersonService().find(context, institutional.getID());
-        assertEquals("institutional@auth.test", actual.getEmail());
-        assertEquals(Util.formatNetId("known", IDP), actual.getNetid());
-        assertTrue(EPersonServiceFactory.getInstance().getGroupService().isMember(context, actual, preservedGroup));
-        assertEquals(count, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
+    private void checkUserIsSignedIn(String token) throws Exception {
+        getClient(token).perform(get("/api/authn/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated", is(true)))
+                .andExpect(jsonPath("$.authenticationMethod", is("shibboleth")));
     }
 
-    @Test
-    public void emailCollisionsCannotCreateOrLink() throws Exception {
-        int count = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        for (String email : new String[] {eperson.getEmail(), institutional.getEmail(),
-                eperson.getEmail().toUpperCase(java.util.Locale.ROOT)}) {
-            MockHttpServletResponse response = getClient().perform(login("unmatched", email))
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository/login?error=shibboleth-account-review-required"))
-                    .andReturn().getResponse();
-            assertNull(response.getCookie(AUTHORIZATION_COOKIE));
-        }
-        assertEquals(count, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
-        assertNull(eperson.getNetid());
-        assertEquals(Util.formatNetId("known", IDP), institutional.getNetid());
-    }
 
+    private void deleteShibbolethUser(EPerson ePerson) throws Exception {
+        EPersonBuilder.deleteEPerson(ePerson.getID());
+
+        // Check it was correctly deleted
+        getClient(token).perform(
+                        get("/api/authz/authorizations/search/object")
+                                .param("embed", "feature")
+                                .param("feature", feature)
+                                .param("uri", utils.linkToSingleResource(ePersonRest, "self").getHref()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements", is(0)))
+                .andExpect(jsonPath("$._embedded").doesNotExist());
+    }
     @Test
-    public void firstLoginCreatesOrdinaryAccountAndRegistrationThenReusesIt() throws Exception {
-        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        UUID id = null;
-        for (int i = 0; i < 2; i++) {
-            MockHttpServletResponse response = getClient().perform(login("new-user", "New.User@auth.test")
-                    .header("givenName", "New").header("sn", "User"))
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository")).andReturn().getResponse();
-            Cookie cookie = response.getCookie(AUTHORIZATION_COOKIE);
-            assertNotNull(cookie);
-            UUID actual = UUID.fromString(JWTParser.parse(cookie.getValue().replace("Bearer ", ""))
-                    .getJWTClaimsSet().getStringClaim("eid"));
-            if (id != null) {
-                assertEquals(id, actual);
+    public void migratedAccountsKeepUuidPasswordAndRegistration() throws Exception {
+        for (EPerson original : new EPerson[] {eperson, admin}) {
+            context.turnOffAuthorisationSystem();
+            original.setNetid(null);
+            ePersonService.update(context, original);
+            org.dspace.content.clarin.ClarinUserRegistration registration =
+                    new org.dspace.content.clarin.ClarinUserRegistration();
+            registration.setPersonID(original.getID());
+            registration.setEmail(original.getEmail());
+            registration.setOrganization(original == admin ? "administrator" : IDP_TEST_EPERSON);
+            registration.setConfirmation(true);
+            org.dspace.content.factory.ClarinServiceFactory.getInstance().getClarinUserRegistration()
+                    .create(context, registration);
+            context.commit();
+            context.restoreAuthSystemState();
+            for (int retry = 0; retry < 2; retry++) {
+                String jwt = getClient().perform(get("/api/authn/shibboleth")
+                                .header("SHIB-MAIL", original.getEmail())
+                                .header("Shib-Identity-Provider", IDP_TEST_EPERSON))
+                        .andExpect(status().isFound()).andReturn().getResponse().getHeader("Authorization");
+                assertEquals(original.getID().toString(), com.nimbusds.jwt.JWTParser
+                        .parse(jwt.replace("Bearer ", "")).getJWTClaimsSet().getStringClaim("eid"));
             }
-            id = actual;
-        }
-        try (Context check = new Context()) {
-            check.turnOffAuthorisationSystem();
-            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
-            assertEquals("new.user@auth.test", created.getEmail());
-            assertEquals(Util.formatNetId("new-user", IDP), created.getNetid());
-            assertEquals("New", created.getFirstName());
-            assertEquals("User", created.getLastName());
-            assertTrue(!created.canLogIn());
-            assertTrue(!created.hasPasswordSet());
-            check.restoreAuthSystemState();
-            assertTrue(!AuthorizeServiceFactory.getInstance().getAuthorizeService().isAdmin(check, created));
-            assertTrue(!EPersonServiceFactory.getInstance().getGroupService().isMember(check, created, preservedGroup));
-            check.turnOffAuthorisationSystem();
-            List<ClarinUserRegistration> registrations = ClarinServiceFactory.getInstance()
-                    .getClarinUserRegistration().findByEPersonUUID(check, id);
-            assertEquals(1, registrations.size());
-            assertEquals(created.getEmail(), registrations.get(0).getEmail());
-            assertTrue(registrations.get(0).isConfirmation());
-            assertEquals(before + 1, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
+            assertTrue(ePersonService.checkPassword(context, original, password));
+            assertEquals(original == admin ? "administrator" : IDP_TEST_EPERSON, registration.getOrganization());
         }
     }
 
     @Test
-    public void emailOnlyCreatesAndReusesOnlyTheSameIssuerBinding() throws Exception {
-        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        UUID id = null;
-        for (String email : new String[] {"Email.Only@auth.test", "email.only@auth.test"}) {
-            MockHttpServletResponse response = getClient().perform(login(null, email))
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository")).andReturn().getResponse();
-            UUID actual = UUID.fromString(JWTParser.parse(response.getCookie(AUTHORIZATION_COOKIE)
-                    .getValue().replace("Bearer ", "")).getJWTClaimsSet().getStringClaim("eid"));
-            if (id != null) {
-                assertEquals(id, actual);
-            }
-            id = actual;
-        }
-        try (Context check = new Context()) {
-            check.turnOffAuthorisationSystem();
-            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
-            assertEquals(ClarinShibAuthentication.emailIdentity(IDP, "email.only@auth.test"), created.getNetid());
-            assertEquals("email.only@auth.test", created.getEmail());
-            assertTrue(!created.canLogIn());
-            assertTrue(!created.hasPasswordSet());
-            List<ClarinUserRegistration> records = ClarinServiceFactory.getInstance()
-                    .getClarinUserRegistration().findByEPersonUUID(check, id);
-            assertEquals(1, records.size());
-            assertTrue(records.get(0).isConfirmation());
-            assertEquals(before + 1, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
-        }
-        // A different issuer, existing native/federated account, or new NetID cannot silently claim it.
-        for (MockHttpServletRequestBuilder request : new MockHttpServletRequestBuilder[] {
-            get(CALLBACK).header("Shib-Identity-Provider", "https://other.auth.test/idp")
-                .header("Shib-Session-ID", "session").header("mail", "email.only@auth.test"),
-            login(null, eperson.getEmail()), login(null, institutional.getEmail()),
-            login("new-binding", "email.only@auth.test")}) {
-            MockHttpServletResponse response = getClient().perform(request)
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository/login?error=shibboleth-account-review-required"))
-                    .andReturn().getResponse();
-            assertNull(response.getCookie(AUTHORIZATION_COOKIE));
-        }
+    public void callbackAuthenticatesFreshIdentityDespitePriorPasswordJwt() throws Exception {
+        String prior = getAuthToken(eperson.getEmail(), password);
+        String jwt = getClient(prior).perform(get("/api/authn/shibboleth")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().isFound()).andReturn().getResponse().getHeader("Authorization");
+        assertEquals(clarinEperson.getID().toString(), com.nimbusds.jwt.JWTParser
+                .parse(jwt.replace("Bearer ", "")).getJWTClaimsSet().getStringClaim("eid"));
     }
 
     @Test
-    public void netidOnlyCreatesAndReusesAccountAndSupportsJwtRefresh() throws Exception {
-        UUID id = null;
-        for (int i = 0; i < 2; i++) {
-            MockHttpServletResponse response = getClient().perform(login("netid-only", null))
-                    .andExpect(status().isFound()).andExpect(redirectedUrl(
-                            "https://repository.auth.test/repository")).andReturn().getResponse();
-            String token = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
-            UUID actual = UUID.fromString(JWTParser.parse(token).getJWTClaimsSet().getStringClaim("eid"));
-            if (id != null) {
-                assertEquals(id, actual);
-            }
-            id = actual;
-            getClient(token).perform(get("/api/authn/status")).andExpect(status().isOk())
-                    .andExpect(jsonPath("$.authenticated").value(true));
-            getClient(token).perform(post("/api/authn/login")).andExpect(status().isOk());
-        }
-        try (Context check = new Context()) {
-            check.turnOffAuthorisationSystem();
-            EPerson created = EPersonServiceFactory.getInstance().getEPersonService().find(check, id);
-            assertNull(created.getEmail());
-            assertEquals(Util.formatNetId("netid-only", IDP), created.getNetid());
-            assertTrue(!created.canLogIn());
-            assertTrue(!created.hasPasswordSet());
-            assertEquals(0, ClarinServiceFactory.getInstance().getClarinUserRegistration()
-                    .findByEPersonUUID(check, id).size());
-        }
+    public void invalidVerificationCredentialCannotFallBackToSpIdentity() throws Exception {
+        getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, "invalid-synthetic-token")
+                        .header("SHIB-MAIL", clarinEperson.getEmail())
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    public void incompleteOrAmbiguousNewIdentityCannotCreateAccount() throws Exception {
-        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        for (MockHttpServletRequestBuilder request : new MockHttpServletRequestBuilder[] {
-            get(CALLBACK).header("eppn", "invalid-new-user").header("mail", "new@auth.test"),
-            login("invalid-new-user", "not-an-email"), login(null, null), login(null, "not-an-email"),
-            login(null, "new@auth.test").header("mail", "another@auth.test"),
-            login("invalid-new-user", "new@auth.test").header("eppn", "other-user"),
-            login("invalid-new-user", "new@auth.test").header("mail", "other@auth.test"),
-            get(CALLBACK).header("Shib-Identity-Provider", IDP).header("eppn", "invalid-new-user")}) {
-            MockHttpServletResponse response = getClient().perform(request).andExpect(status().isFound())
-                    .andExpect(redirectedUrl("https://repository.auth.test/repository/login"
-                            + "?error=shibboleth-attributes-invalid")).andReturn().getResponse();
-            assertNull(response.getCookie(AUTHORIZATION_COOKIE));
-        }
-        assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
-    }
-
-    private static class Provisioner extends ClarinShibAuthentication {
-        void failRegistration() throws Exception {
-            clarinUserRegistrationService = org.mockito.Mockito.mock(
-                    org.dspace.content.service.clarin.ClarinUserRegistrationService.class);
-            org.mockito.Mockito.when(clarinUserRegistrationService.create(
-                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                    .thenThrow(new java.sql.SQLException("Synthetic registration failure"));
-        }
-
-        UUID create(String identifier, String email) throws Exception {
-            try (Context registration = new Context()) {
-                String key = identifier == null ? ClarinShibAuthentication.emailIdentity(IDP, email)
-                        : Util.formatNetId(identifier, IDP);
-                return provision(registration, List.of(key), email, "Concurrent", "User");
-            }
-        }
-    }
-
-    @Test
-    public void concurrentFirstLoginsProduceOneAccountAndRegistration() throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(2);
-        CountDownLatch start = new CountDownLatch(1);
-        try {
-            Future<UUID> first = pool.submit(() -> {
-                start.await();
-                return new Provisioner().create("concurrent", "concurrent@auth.test");
-            });
-            Future<UUID> second = pool.submit(() -> {
-                start.await();
-                return new Provisioner().create("concurrent", "concurrent@auth.test");
-            });
-            start.countDown();
-            UUID id = first.get(30, TimeUnit.SECONDS);
-            assertEquals(id, second.get(30, TimeUnit.SECONDS));
-            try (Context check = new Context()) {
-                check.turnOffAuthorisationSystem();
-                assertEquals(1, ClarinServiceFactory.getInstance().getClarinUserRegistration()
-                        .findByEPersonUUID(check, id).size());
-            }
-        } finally {
-            pool.shutdownNow();
-        }
-    }
-
-    @Test
-    public void concurrentEmailOnlyAndNetidOnlyLoginsRemainUnique() throws Exception {
-        for (String identifier : new String[] {null, "netid-only"}) {
-            String email = identifier == null ? "concurrent.email@auth.test" : null;
-            ExecutorService pool = Executors.newFixedThreadPool(2);
-            CountDownLatch start = new CountDownLatch(1);
-            try {
-                java.util.concurrent.Callable<UUID> create = () -> {
-                    start.await();
-                    return new Provisioner().create(identifier, email);
-                };
-                Future<UUID> one = pool.submit(create);
-                Future<UUID> two = pool.submit(create);
-                start.countDown();
-                assertEquals(one.get(30, TimeUnit.SECONDS), two.get(30, TimeUnit.SECONDS));
-            } finally {
-                pool.shutdownNow();
-            }
-        }
-    }
-
-    @Test
-    public void failedClarinRegistrationRollsBackTheEntireAccount() throws Exception {
-        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        Provisioner provider = new Provisioner();
-        provider.failRegistration();
-        try {
-            provider.create("failed-registration", "failed@auth.test");
-            org.junit.Assert.fail("Registration failure must abort provisioning");
-        } catch (java.sql.SQLException expected) {
-            try (Context check = new Context()) {
-                assertNull(EPersonServiceFactory.getInstance().getEPersonService()
-                        .findByNetid(check, Util.formatNetId("failed-registration", IDP)));
-                assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(check));
-            }
-        }
-    }
-
-    @Test
-    public void concurrentDifferentIdentitiesWithSameEmailDoNotLink() throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(2);
-        CountDownLatch start = new CountDownLatch(1);
-        try {
-            Future<UUID> first = pool.submit(() -> {
-                start.await();
-                return new Provisioner().create("first", "collision@auth.test");
-            });
-            Future<UUID> second = pool.submit(() -> {
-                start.await();
-                return new Provisioner().create("second", "collision@auth.test");
-            });
-            start.countDown();
-            UUID one = first.get(30, TimeUnit.SECONDS);
-            UUID two = second.get(30, TimeUnit.SECONDS);
-            assertTrue((one == null) != (two == null));
-        } finally {
-            pool.shutdownNow();
-        }
-    }
-
-    @Test
-    public void explicitAssistedBindingReusesLocalAccountAndKeepsPassword() throws Exception {
-        // Keep the suite-wide eperson fixture unchanged; the builder owns this local account.
+    public void verificationCredentialsCannotBeReadWithoutTheEmailedSecret() throws Exception {
         context.turnOffAuthorisationSystem();
-        EPerson local = EPersonBuilder.createEPerson(context).withEmail("recovery@auth.test")
-                .withNameInMetadata("Recovery", "Account").withCanLogin(true).withPassword(password).build();
-        int before = EPersonServiceFactory.getInstance().getEPersonService().countTotal(context);
-        UUID id = local.getID();
-        String email = local.getEmail();
-        // Equivalent to the supported privileged user --modify --newNetid service path.
-        // Ownership proof and consent are operator prerequisites, never inferred from the email.
-        local.setNetid(Util.formatNetId("recovered", IDP));
-        EPersonServiceFactory.getInstance().getEPersonService().update(context, local);
+        ClarinVerificationToken pending = clarinVerificationTokenService.create(context);
+        pending.setePersonNetID("pending[" + IDP_TEST_EPERSON + "]");
+        pending.setEmail("pending@auth.test");
+        pending.setToken("private-synthetic-verification-marker");
+        clarinVerificationTokenService.update(context, pending);
         context.commit();
         context.restoreAuthSystemState();
-        MockHttpServletResponse response = getClient().perform(login("recovered", email))
-                .andExpect(status().isFound()).andReturn().getResponse();
-        String value = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
-        assertEquals(id.toString(), JWTParser.parse(value).getJWTClaimsSet().getStringClaim("eid"));
-        assertNotNull(getAuthToken(email, password));
-        assertEquals(before, EPersonServiceFactory.getInstance().getEPersonService().countTotal(context));
+        getClient().perform(get("/api/core/clarinverificationtokens/" + pending.getID()))
+                .andExpect(status().isUnauthorized());
+        getClient().perform(get("/api/core/clarinverificationtokens/search/byNetId")
+                        .param("netid", pending.getePersonNetID()))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    public void existingIdentityDoesNotNeedEmailVerification() throws Exception {
-        MockHttpServletResponse response = getClient().perform(get(CALLBACK)
-                .header("Shib-Identity-Provider", IDP).header("eppn", "known"))
-                .andExpect(status().isFound()).andReturn().getResponse();
-        assertNotNull(response.getCookie(AUTHORIZATION_COOKIE));
-    }
-
-    @Test
-    public void maliciousReturnCannotIssueCookie() throws Exception {
-        MockHttpServletResponse response = getClient().perform(login("known", "institutional@auth.test")
-                .param("redirectUrl", "http://repository.auth.test/repository/"))
-                .andExpect(status().isBadRequest()).andReturn().getResponse();
-        assertNull(response.getCookie(AUTHORIZATION_COOKIE));
-    }
-
-    @Test
-    public void passwordRecoveryRemainsIndependent() throws Exception {
-        assertNotNull(getAuthToken(eperson.getEmail(), password));
-    }
-
-    @Test
-    public void priorPasswordSessionCannotBypassInstitutionalMatching() throws Exception {
-        String localToken = getAuthToken(eperson.getEmail(), password);
-        MockHttpServletResponse denied = getClient(localToken).perform(login("unmatched", eperson.getEmail()))
-                .andExpect(status().isFound()).andExpect(redirectedUrl(
-                        "https://repository.auth.test/repository/login?error=shibboleth-account-review-required"))
-                .andReturn().getResponse();
-        assertNull(denied.getCookie(AUTHORIZATION_COOKIE));
-        MockHttpServletResponse accepted = getClient(localToken).perform(login("known", "institutional@auth.test"))
-                .andExpect(status().isFound()).andReturn().getResponse();
-        String value = accepted.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
-        assertEquals(institutional.getID().toString(), JWTParser.parse(value).getJWTClaimsSet().getStringClaim("eid"));
-    }
-
-    @Test
-    public void institutionalLoginPreservesRestrictedDownloadRights() throws Exception {
+    public void verifiedEmailCannotReplaceAConflictingNativeBinding() throws Exception {
         context.turnOffAuthorisationSystem();
+        ClarinVerificationToken pending = clarinVerificationTokenService.create(context);
+        pending.setePersonNetID("different[" + IDP_TEST_EPERSON + "]");
+        pending.setEmail(clarinEperson.getEmail());
+        pending.setExpires(new java.util.Date(System.currentTimeMillis() + 60_000));
+        pending.setToken("conflicting-synthetic-verification-marker");
+        org.springframework.mock.web.MockHttpServletRequest headers =
+                new org.springframework.mock.web.MockHttpServletRequest();
+        headers.addHeader("Shib-Identity-Provider", IDP_TEST_EPERSON);
+        headers.addHeader("SHIB-NETID", "different");
+        pending.setShibHeaders(new org.dspace.authenticate.clarin.ShibHeaders(headers).toString());
+        clarinVerificationTokenService.update(context, pending);
+        context.commit();
+        context.restoreAuthSystemState();
+        getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, pending.getToken()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void emailCompletionRequiresTheOriginatingBrowser() throws Exception {
+        getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", "request-binding"))
+                .andExpect(status().isFound());
+        getClient().perform(post("/api/autoregistration")
+                        .param("netid", Util.formatNetId("request-binding", IDP_TEST_EPERSON))
+                        .param("email", "another-browser@auth.test"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void expiredVerificationCredentialIsRejected() throws Exception {
+        context.turnOffAuthorisationSystem();
+        ClarinVerificationToken expired = clarinVerificationTokenService.create(context);
+        expired.setePersonNetID(Util.formatNetId(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON));
+        expired.setEmail(clarinEperson.getEmail());
+        expired.setToken("expired-synthetic-verification-marker");
+        expired.setExpires(new java.util.Date(System.currentTimeMillis() - 60_000));
+        clarinVerificationTokenService.update(context, expired);
+        context.commit();
+        context.restoreAuthSystemState();
+        getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, expired.getToken()))
+                .andExpect(status().isUnauthorized());
+        getClient().perform(get("/api/autoregistration").param("verification-token", expired.getToken()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void migratedEmailLoginRetainsRestrictedContentPermissions() throws Exception {
+        context.turnOffAuthorisationSystem();
+        Group preserved = GroupBuilder.createGroup(context).withName("Preserved migration permission")
+                .addMember(eperson).build();
         parentCommunity = CommunityBuilder.createCommunity(context).withName("Auth fixture").build();
         Collection collection = CollectionBuilder.createCollection(context, parentCommunity).withName("Files").build();
-        Item item = ItemBuilder.createItem(context, collection).withTitle("Synthetic restricted item").build();
+        Item item = ItemBuilder.createItem(context, collection).withTitle("Restricted fixture").build();
         Bitstream restricted = BitstreamBuilder.createBitstream(context, item,
                 new ByteArrayInputStream("synthetic content".getBytes(StandardCharsets.UTF_8)))
-                .withName("restricted.txt").withMimeType("text/plain").withReaderGroup(preservedGroup).build();
+                .withName("restricted.txt").withMimeType("text/plain").withReaderGroup(preserved).build();
         context.restoreAuthSystemState();
         String path = "/api/core/bitstreams/" + restricted.getID() + "/content";
         getClient().perform(get(path)).andExpect(status().isUnauthorized());
-        String unrelated = getAuthToken(eperson.getEmail(), password);
-        getClient(unrelated).perform(get(path)).andExpect(status().isForbidden());
-        getClient(unrelated).perform(get(path).header("Range", "bytes=0-3")).andExpect(status().isForbidden());
-        MockHttpServletResponse response = getClient().perform(login("known", "institutional@auth.test"))
-                .andExpect(status().isFound()).andReturn().getResponse();
-        String token = response.getCookie(AUTHORIZATION_COOKIE).getValue().replace("Bearer ", "");
-        getClient(token).perform(get(path)).andExpect(status().isOk());
-        getClient(token).perform(get(path).header("Range", "bytes=0-3")).andExpect(status().isPartialContent());
+        getClient().perform(get(path).header("Range", "bytes=0-3")).andExpect(status().isUnauthorized());
+        String jwt = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-MAIL", eperson.getEmail()))
+                .andExpect(status().isFound()).andReturn().getResponse().getHeader("Authorization");
+        getClient(jwt).perform(get(path)).andExpect(status().isOk());
+        getClient(jwt).perform(get(path).header("Range", "bytes=0-3")).andExpect(status().isPartialContent());
     }
+
+    @Test
+    public void concurrentTokenCallbacksIssueOnlyOneCredential() throws Exception {
+        context.turnOffAuthorisationSystem();
+        ClarinVerificationToken pending = clarinVerificationTokenService.create(context);
+        pending.setePersonNetID(Util.formatNetId(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON));
+        pending.setEmail(clarinEperson.getEmail());
+        pending.setToken("concurrent-synthetic-verification-marker");
+        pending.setExpires(new java.util.Date(System.currentTimeMillis() + 60_000));
+        org.springframework.mock.web.MockHttpServletRequest headers =
+                new org.springframework.mock.web.MockHttpServletRequest();
+        headers.addHeader("Shib-Identity-Provider", IDP_TEST_EPERSON);
+        headers.addHeader("SHIB-NETID", NET_ID_TEST_EPERSON);
+        pending.setShibHeaders(new org.dspace.authenticate.clarin.ShibHeaders(headers).toString());
+        clarinVerificationTokenService.update(context, pending);
+        context.commit();
+        context.restoreAuthSystemState();
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            java.util.concurrent.Callable<Integer> login = () -> getClient().perform(post("/api/authn/shibboleth")
+                            .header(VERIFICATION_TOKEN_HEADER, pending.getToken()))
+                    .andReturn().getResponse().getStatus();
+            Future<Integer> first = pool.submit(login);
+            Future<Integer> second = pool.submit(login);
+            List<Integer> results = new ArrayList<>(List.of(first.get(30, TimeUnit.SECONDS),
+                    second.get(30, TimeUnit.SECONDS)));
+            java.util.Collections.sort(results);
+            assertEquals(List.of(200, 401), results);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void retainedNativeAccountWithoutEmailCanCompleteVerification() throws Exception {
+        context.turnOffAuthorisationSystem();
+        clarinEperson.setEmail(null);
+        ePersonService.update(context, clarinEperson);
+        context.commit();
+        context.restoreAuthSystemState();
+        MockHttpServletResponse start = getClient().perform(get("/api/authn/shibboleth")
+                        .header("Shib-Identity-Provider", IDP_TEST_EPERSON)
+                        .header("SHIB-NETID", NET_ID_TEST_EPERSON))
+                .andExpect(status().isFound()).andReturn().getResponse();
+        assertTrue(start.getRedirectedUrl().contains("/login/auth-failed?"));
+        getClient().perform(post("/api/autoregistration").cookie(start.getCookie("DSPACE-SHIB-VERIFICATION"))
+                        .param("netid", Util.formatNetId(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON))
+                        .param("email", "completed-existing@auth.test"))
+                .andExpect(status().isOk());
+        ClarinVerificationToken pending = clarinVerificationTokenService.findByNetID(context,
+                Util.formatNetId(NET_ID_TEST_EPERSON, IDP_TEST_EPERSON));
+        String jwt = getClient().perform(post("/api/authn/shibboleth")
+                        .header(VERIFICATION_TOKEN_HEADER, pending.getToken()))
+                .andExpect(status().isOk()).andReturn().getResponse().getHeader("Authorization");
+        assertEquals(clarinEperson.getID().toString(), com.nimbusds.jwt.JWTParser
+                .parse(jwt.replace("Bearer ", "")).getJWTClaimsSet().getStringClaim("eid"));
+    }
+
 }

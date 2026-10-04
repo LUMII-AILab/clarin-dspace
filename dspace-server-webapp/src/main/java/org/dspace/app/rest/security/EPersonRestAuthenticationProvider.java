@@ -169,17 +169,14 @@ public class EPersonRestAuthenticationProvider implements AuthenticationProvider
     private Authentication createAuthentication(final Context context) {
         EPerson ePerson = context.getCurrentUser();
 
-        boolean federated = Boolean.TRUE.equals(request.getAttribute("shib.authenticated"))
-                || "shibboleth".equals(context.getAuthenticationMethod());
-        if (ePerson != null && (StringUtils.isNotBlank(ePerson.getEmail())
-                || (federated && StringUtils.isNotBlank(ePerson.getNetid())))) {
+        if (ePerson != null && StringUtils.isNotBlank(ePerson.getEmail())) {
             //Pass the eperson ID to the request service
             requestService.setCurrentUserId(ePerson.getID());
 
             return new DSpaceAuthentication(ePerson, getGrantedAuthorities(context));
 
         } else {
-            log.info(LogHelper.getHeader(context, "failed_login", "No eligible authenticated eperson found"));
+            log.info(LogHelper.getHeader(context, "failed_login", "No eperson with an non-blank e-mail address found"));
             throw new BadCredentialsException("Login failed");
         }
     }

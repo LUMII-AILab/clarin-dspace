@@ -10,7 +10,6 @@ package org.dspace.app.rest.security;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 import org.dspace.eperson.EPerson;
 import org.springframework.security.core.Authentication;
@@ -27,7 +26,6 @@ public class DSpaceAuthentication implements Authentication {
 
     private Date previousLoginDate;
     private String username;
-    private UUID epersonId;
     private String password;
     private List<GrantedAuthority> authorities;
     private boolean authenticated;
@@ -42,9 +40,7 @@ public class DSpaceAuthentication implements Authentication {
      */
     public DSpaceAuthentication(EPerson ePerson, List<GrantedAuthority> authorities) {
         this.previousLoginDate = ePerson.getPreviousActive();
-        this.epersonId = ePerson.getID();
-        // An institutional account may not have an email yet. Its UUID is a stable principal.
-        this.username = ePerson.getEmail() == null ? ePerson.getID().toString() : ePerson.getEmail();
+        this.username = ePerson.getEmail();
         this.authorities = authorities;
         this.authenticated = true;
     }
@@ -77,10 +73,6 @@ public class DSpaceAuthentication implements Authentication {
 
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
-    }
-
-    public UUID getEPersonId() {
-        return epersonId;
     }
 
     public Object getCredentials() {
