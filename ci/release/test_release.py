@@ -150,3 +150,74 @@ class ReleaseTests(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+
+
+class ArtifactRetentionTests(unittest.TestCase):
+    def workflow(self):
+        return (ROOT / '.github/workflows/clarin-release.yml').read_text()
+
+    def test_cleanup_requires_success_and_has_isolated_permissions(self):
+        workflow = self.workflow()
+        before, cleanup = workflow.split('\n  cleanup:\n')
+        self.assertNotIn('actions: write', before)
+        self.assertIn('needs: [build, publish]', cleanup)
+        self.assertIn("if: ${{ success() && needs.publish.result == 'success' }}", cleanup)
+        self.assertIn('permissions:\n      actions: write\n    steps:', cleanup)
+        self.assertNotIn('uses:', cleanup)
+        self.assertNotIn('always()', cleanup)
+        self.assertNotIn('continue-on-error', cleanup)
+        self.assertIn('candidate_artifact_id: ${{ steps.candidate.outputs.artifact-id }}', before)
+        self.assertIn('CANDIDATE_ARTIFACT_ID: ${{ needs.build.outputs.candidate_artifact_id }}', cleanup)
+        candidate = before.split('        id: candidate\n', 1)[1]
+        self.assertTrue(candidate.startswith('        if: always()\n        uses: actions/upload-artifact@'))
+        self.assertIn('python3 ci/release/publish_report.py', before.split('\n  publish:\n')[1])
+
+    def test_all_artifact_uploads_have_three_day_retention(self):
+        workflow = self.workflow()
+        self.assertIn('DOCKER_BUILD_RECORD_RETENTION_DAYS: "3"', workflow)
+        self.assertEqual(workflow.count('retention-days: 3\n'),
+                         workflow.count('uses: actions/upload-artifact@'))
+
+    def test_cleanup_shell_targets_exact_id_and_is_retryable(self):
+        import subprocess
+        import textwrap
+
+        cleanup = self.workflow().split('\n  cleanup:\n')[1]
+        script = textwrap.dedent(cleanup.split('        run: |\n')[1])
+        # Execute the actual workflow shell against a fake API and the real jq filter.
+        harness = r"""
+gh() {
+  if [ "$*" = 'api --paginate repos/owner/app/actions/runs/456/artifacts?per_page=100' ]; then
+    [ "$CASE" != list_error ] || return 1
+    if [ "$CASE" = absent ]; then
+      printf '%s\n' '{"artifacts":[{"id":999}]}'
+    else
+      printf '%s\n' '{"artifacts":[{"id":999}]}' '{"artifacts":[{"id":123}]}'
+    fi
+  elif [ "$*" = 'api --method DELETE repos/owner/app/actions/artifacts/123' ]; then
+    printf '%s\n' "$*" >> "$TRACE"
+    [ "$CASE" != delete_error ]
+  else
+    printf 'Unexpected API call: %s\n' "$*" >&2
+    return 2
+  fi
+}
+"""
+        cases = [('present', '123', True, 1), ('absent', '123', True, 0),
+                 ('list_error', '123', False, 0), ('delete_error', '123', False, 1),
+                 ('present', '', False, 0), ('present', '0', False, 0),
+                 ('present', '../999', False, 0)]
+        for case, identifier, success, deletes in cases:
+            with self.subTest(case=case, identifier=identifier), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                trace, summary = root / 'trace', root / 'summary'
+                trace.write_text('')
+                env = dict(os.environ, CASE=case, TRACE=str(trace),
+                           GITHUB_REPOSITORY='owner/app', GITHUB_RUN_ID='456',
+                           CANDIDATE_ARTIFACT_ID=identifier, GITHUB_STEP_SUMMARY=str(summary))
+                result = subprocess.run(['bash', '--noprofile', '--norc', '-e', '-o',
+                                         'pipefail', '-c', harness + script],
+                                        env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode == 0, success, result.stderr)
+                self.assertEqual(len(trace.read_text().splitlines()), deletes)
+                self.assertEqual(summary.exists(), success)

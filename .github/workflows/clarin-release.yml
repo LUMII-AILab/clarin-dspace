@@ -48,13 +48,16 @@ jobs:
           path: |
             **/target/surefire-reports/
             **/target/failsafe-reports/
-          retention-days: 30
+          retention-days: 3
   build:
     name: Backend candidate
     if: github.repository == 'LUMII-AILab/clarin-dspace'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      DOCKER_BUILD_RECORD_RETENTION_DAYS: "3"
     outputs:
+      candidate_artifact_id: ${{ steps.candidate.outputs.artifact-id }}
       digest: ${{ steps.build.outputs.digest }}
       image: ${{ steps.source.outputs.image }}
       tag: ${{ steps.source.outputs.tag }}
@@ -110,13 +113,14 @@ jobs:
           bash ci/release/scan.sh output/backend.oci.tar output/evidence
           python3 ci/release/record.py
       - name: Retain candidate for publication retry
+        id: candidate
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-candidate-${{ github.run_id }}
           path: output/
           overwrite: true
-          retention-days: 30
+          retention-days: 3
           compression-level: 0
           if-no-files-found: error
   publish:
@@ -157,3 +161,29 @@ jobs:
         run: |
           bash ci/release/publish.sh
           python3 ci/release/publish_report.py
+
+  cleanup:
+    name: Remove published candidate
+    needs: [build, publish]
+    if: ${{ success() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete only this build's candidate artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_ARTIFACT_ID: ${{ needs.build.outputs.candidate_artifact_id }}
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          artifact_id=$(gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
+            | jq -r --arg id "$CANDIDATE_ARTIFACT_ID" \
+              '.artifacts[] | select((.id | tostring) == $id) | .id')
+          if [ -n "$artifact_id" ]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
+          fi
+          printf 'Candidate artifact %s removed or already absent.\n' \
+            "$CANDIDATE_ARTIFACT_ID" >> "$GITHUB_STEP_SUMMARY"

@@ -120,7 +120,7 @@ and scratch files are removed on exit. Scratch must not use a container tmpfs:
 the backend archive exceeds the copier's 512 MiB memory limit.
 
 On interruption, use **Re-run failed jobs**, retaining the successful candidate
-artifact (30 days). Do not rerun a successful build just to retry the publisher.
+artifact (3 days). Do not rerun a successful build just to retry the publisher.
 An expired/lost candidate needs a deliberate new source version and qualification;
 never move an existing immutable tag. `release.json`, JSON evidence and the checksummed JAR/tool-version reports remain on
 the release, while the OCI archive is a time-limited CI artifact. Reports are not
@@ -150,3 +150,20 @@ Customer-branch dispatch, upstream/customer triage/backport jobs, the empty issu
 workflow and obsolete CodeQL workflow are inactive in this fork. Disabling CodeQL
 is not a claim of replacement SAST coverage. No upstream files were discarded;
 changes to dependencies/scanners remain reviewed work.
+
+## CI artifact retention
+
+Candidate archives, uploaded test reports and Docker build records expire after
+three days from upload. Approve or retry publication within that window. Existing
+artifacts keep their original expiry and require separate cleanup if no longer needed.
+
+After image publication and durable release-report verification succeed, a separate
+cleanup job deletes only that build's candidate artifact, using its upload ID.
+Failed, cancelled, skipped or approval-pending publication keeps the candidate
+until expiry. Diagnostic artifacts retain their three-day window; published GHCR
+images, GitHub release assets and workflow logs are not deleted by this job.
+
+If cleanup fails, use **Re-run failed jobs** to retry only cleanup, without
+rebuilding or republishing. An already absent candidate is a successful no-op.
+After successful cleanup, publication cannot be rerun from that CI archive;
+use the verified published image and release reports for selection and rollback.
